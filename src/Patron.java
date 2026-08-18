@@ -1,27 +1,17 @@
 /**
- * 
+ * A library member, and the count of books they currently hold.
+ *
+ * @author Seedorf Obeng-Mireku
  */
+public class Patron {
 
-/**
- * {Student ID: 22053376
-Name: Seedorf Obeng-Mireku
-Campus: Parramatta South
-Tutor Name: Albany Asher
-Class Day: Tuesday
-Class Time: 1900 - 2100}
- */
-public class Patron_22053376 {
-
-	/**
-	 * @param args
-	 */
 	
 	private String name;
 	private String patronID;
 	private int booksBorrowed;
 	
 	
-	public Patron_22053376(String name, String patronID, int booksBorrowed) {
+	public Patron(String name, String patronID, int booksBorrowed) {
 		this.name = name;
 		this.patronID = patronID;
 		this.booksBorrowed = booksBorrowed;

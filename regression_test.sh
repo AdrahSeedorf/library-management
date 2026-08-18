@@ -52,7 +52,7 @@ fresh() {
 
 # run <stdin keystrokes>
 run() {
-    printf '%b' "$1" | (cd "$WORK/run" && java -cp "$BUILD" LibraryManager_22053376 2>&1)
+    printf '%b' "$1" | (cd "$WORK/run" && java -cp "$BUILD" LibraryManager 2>&1)
 }
 
 check() {  # check <name> <condition-result> <detail>

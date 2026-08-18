@@ -24,7 +24,7 @@ Needs a JDK (any version from 11). From the project root:
 
 ```bash
 javac -d out src/*.java
-java -cp out LibraryManager_22053376
+java -cp out LibraryManager
 ```
 
 Run it from the project root — it reads and writes the CSVs in the working
@@ -120,10 +120,10 @@ one.
 
 | File | Responsibility |
 |---|---|
-| `LibraryManager_22053376.java` | menus, file I/O, and the operations |
-| `Book_22053376.java` | title, author, ISBN, availability |
-| `Patron_22053376.java` | name, ID, current borrow count |
-| `Borrows_22053376.java` | one loan: book, patron, borrowed/due/return dates |
+| `LibraryManager.java` | menus, file I/O, and the operations |
+| `Book.java` | title, author, ISBN, availability |
+| `Patron.java` | name, ID, current borrow count |
+| `Borrows.java` | one loan: book, patron, borrowed/due/return dates |
 
 ## Known limitations
 

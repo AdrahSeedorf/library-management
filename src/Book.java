@@ -1,20 +1,14 @@
 /**
- * 
+ * A single book in the catalogue.
+ *
+ * Availability is the book's own business: checkBookOut and returnBook apply the
+ * rule and report whether it applied, rather than printing. See the note on
+ * checkBookOut for why that matters.
+ *
+ * @author Seedorf Obeng-Mireku
  */
+public class Book {
 
-/**
- * {Student ID: 22053376
-Name: Seedorf Obeng-Mireku
-Campus: Parramatta South
-Tutor Name: Albany Asher
-Class Day: Tuesday
-Class Time: 1900 - 2100}
- */
-public class Book_22053376 {
-
-	/**
-	 * @param args
-	 */
 	
 	private String title;
 	private String author;
@@ -22,7 +16,7 @@ public class Book_22053376 {
 	private boolean availability;
 	
 	
-	public Book_22053376 (String title, String author, String ISBN, boolean availability) {
+	public Book (String title, String author, String ISBN, boolean availability) {
 		this.title = title;
 		this.author = author;
 		this.ISBN = ISBN;

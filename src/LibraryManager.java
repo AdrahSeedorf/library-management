@@ -1,31 +1,26 @@
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+
 /**
- * 
+ * The console front end: menus, CSV persistence, and the library operations.
+ *
+ * Reads booklist.csv, patronList.csv and borrowedBooks.csv from the working
+ * directory on startup, and writes the first two back on a clean exit. The three
+ * are cross-checked against each other as they load, and disagreements are
+ * reported rather than believed.
+ *
+ * @author Seedorf Obeng-Mireku
  */
+public class LibraryManager {
 
-/**
-	 * {Student ID: 22053376
-	Name: Seedorf Obeng-Mireku
-	Campus: Parramatta South
-	Tutor Name: Albany Asher
-	Class Day: Tuesday
-	Class Time: 1900 - 2100}
-	 */
-
-	import java.io.FileWriter;
-	import java.io.IOException;
-	import java.util.ArrayList;
-	import java.util.List;
-	import java.util.Scanner;
-	import java.io.BufferedWriter;
-	import java.io.File;
-	import java.io.FileNotFoundException;
-	import java.time.LocalDate;
-	import java.time.format.DateTimeParseException;
-public class LibraryManager_22053376 {
-
-	/**
-	 * @param args
-	 */
 	
 	/**
 	 * 
@@ -75,9 +70,6 @@ public class LibraryManager_22053376 {
 			return keyboard.hasNextLine() ? keyboard.nextLine().trim() : "";
 		}
 
-		/**
-		 * @param args
-		 */
 		
 		
 		/**
@@ -93,14 +85,14 @@ public class LibraryManager_22053376 {
 		public static final String PATRONS_FILE = "patronList.csv";
 		public static final String LOANS_FILE = "borrowedBooks.csv";
 
-		public static ArrayList<Book_22053376> books = new ArrayList<>(); //An arrayList named books is created to store books
-	    public static ArrayList<Patron_22053376> patrons = new ArrayList<>(); //An arrayList named patrons is created to store patrons
+		public static ArrayList<Book> books = new ArrayList<>(); //An arrayList named books is created to store books
+	    public static ArrayList<Patron> patrons = new ArrayList<>(); //An arrayList named patrons is created to store patrons
 	    /**
 	     * Every loan, open and closed. borrowedBooks.csv used to be written and never
 	     * read, so the program had no idea who was holding which book -- which is why
 	     * returns went unchecked.
 	     */
-	    public static ArrayList<Borrows_22053376> loans = new ArrayList<>();
+	    public static ArrayList<Borrows> loans = new ArrayList<>();
 
 		
 		
@@ -229,7 +221,7 @@ public class LibraryManager_22053376 {
 		
 		
 		//The method below reads data about boos from booksFile and stores it in the arrayList called bookList
-		 public static void readBooksFromFile(String booksFile, ArrayList<Book_22053376> books) {
+		 public static void readBooksFromFile(String booksFile, ArrayList<Book> books) {
 			 
 			 String str;
 			 String title;
@@ -258,7 +250,7 @@ public class LibraryManager_22053376 {
 		                author = item[1].trim(); //The second item on the line is stored as the author
 		                isbn = item[2].trim(); //The third item is stored as the ISBN of the book
 		                availability = Boolean.parseBoolean(item[3].trim()); //data[3] is read from the file as string so it is converted to boolean to match the type of availability.
-		                Book_22053376 book = new Book_22053376(title, author, isbn, availability);
+		                Book book = new Book(title, author, isbn, availability);
 
 		                //The new book object created is added to the arraylist of books
 		                books.add(book);
@@ -270,7 +262,7 @@ public class LibraryManager_22053376 {
 		 
 		 
 		 //The method below reads data about patrons from patronsFile and stores it in the arrayList called patronList
-		 public static void readPatronsFromFile(String patronsFile, ArrayList<Patron_22053376> patrons) {
+		 public static void readPatronsFromFile(String patronsFile, ArrayList<Patron> patrons) {
 			 String str;
 			 String name;
 			 String patronID;
@@ -301,7 +293,7 @@ public class LibraryManager_22053376 {
 		                }
 		                
 		                
-		                Patron_22053376 patron = new Patron_22053376(name, patronID, booksBorrowed);// A new patron object is created and given name, patronID and booksBorrowed as parameters
+		                Patron patron = new Patron(name, patronID, booksBorrowed);// A new patron object is created and given name, patronID and booksBorrowed as parameters
 
 		                //The new patron object created is added to the arraylist of patrons
 		                patrons.add(patron);
@@ -315,11 +307,11 @@ public class LibraryManager_22053376 {
 		 
 		 
 		 //This method displays the books owned by the library with their titles, authors,ISBN, and their availability.
-		 public static void outputBookCatalogue(ArrayList<Book_22053376> books) {
+		 public static void outputBookCatalogue(ArrayList<Book> books) {
 		        System.out.println("\n===== Book Catalogue in the Library =====");
 		        System.out.println("-------------------------------------------");
 		        System.out.printf("\n%-40s %-30s %-20s %-10s%n","Title", "Author", "ISBN", "Available?");
-		        for (Book_22053376 book : books) {
+		        for (Book book : books) {
 		            System.out.printf("%-40s %-30s %-20s %-10s%n", book.getTitle(), book.getAuthor(), book.getISBN(), book.getAvailability());
 		        }
 		    }
@@ -329,11 +321,11 @@ public class LibraryManager_22053376 {
 		 
 		 
 		 //This method displays the names of patrons, their patronID and the number of books each patron has borrowed
-		 public static void outputListOfPatrons(ArrayList<Patron_22053376> patrons) {
+		 public static void outputListOfPatrons(ArrayList<Patron> patrons) {
 		        System.out.println("\n===== List of Patrons =====");
 		        System.out.println("-----------------------------");
 	           System.out.printf("\n%-30s %-20s %-5s%n", "Name", "Patron ID", "Books borrowed");
-		        for (Patron_22053376 patron : patrons) {
+		        for (Patron patron : patrons) {
 		            System.out.printf("%-30s %-20s %-5d%n", patron.getName(), patron.getPatronID(), patron.getBooksBorrowed());
 		        }
 		    }
@@ -355,7 +347,7 @@ public class LibraryManager_22053376 {
 			 System.out.println("Enter the ISBN of the book: ");
 			 isbn = readLine();
 			 availability = true;
-			 Book_22053376 newBook = new Book_22053376(title, author, isbn, availability);
+			 Book newBook = new Book(title, author, isbn, availability);
 			 books.add(newBook);
 			 System.out.println(newBook.getTitle() + " by " + newBook.getAuthor() + " has been successfully added.");
 		 }
@@ -379,7 +371,7 @@ public class LibraryManager_22053376 {
 					 // Hold the book BEFORE removing it. Reading books.get(i) afterwards
 					 // reads whatever shuffled into that slot -- the next book along, or
 					 // nothing at all if this was the last one.
-					 Book_22053376 gone = books.remove(i);
+					 Book gone = books.remove(i);
 					 System.out.println(gone.getTitle() + " by " + gone.getAuthor() + " has been removed successfully.");
 					 removed = true;
 					 break;
@@ -442,7 +434,7 @@ public class LibraryManager_22053376 {
 				 id = lastID + 1; //The new patron is given the next sequential id after the last patron ID on the list.
 			 }
 			 booksBorrowed = 0; //New Patrons have no books borrowed
-			 Patron_22053376 newPatron = new Patron_22053376(name, String.valueOf(id), booksBorrowed);
+			 Patron newPatron = new Patron(name, String.valueOf(id), booksBorrowed);
 			 patrons.add(newPatron); //The new patron is added to the list of patrons
 			 System.out.println( newPatron.getName() + " has been successfully added.");
 		 }
@@ -487,7 +479,7 @@ public class LibraryManager_22053376 {
 		     System.out.println("Enter the author of the book: ");
 		     author = readLine();
 		     
-		     Book_22053376 loanBook = null;
+		     Book loanBook = null;
 		     for (int i = 0; i < books.size(); i++) {
 				 if (title.equals(books.get(i).getTitle()) && author.equals(books.get(i).getAuthor())) {
 					 foundBook = true;
@@ -507,7 +499,7 @@ public class LibraryManager_22053376 {
 		     String patronID; 
 		     System.out.println("Enter the patron ID: ");
 		     patronID = readLine();
-		     Patron_22053376 loanPatron = null;
+		     Patron loanPatron = null;
 		     for (int i = 0; i < patrons.size(); i++) {
 				 if (patronID.equals(patrons.get(i).getPatronID())) {
 					 foundPatron = true;
@@ -527,7 +519,7 @@ public class LibraryManager_22053376 {
 		     loanBook.checkBookOut();
 		     loanPatron.borrowBook();
 		     
-		     Borrows_22053376 borrow = new Borrows_22053376(loanBook, loanPatron);   //A new borrows object is created after a successful loan
+		     Borrows borrow = new Borrows(loanBook, loanPatron);   //A new borrows object is created after a successful loan
 		     loans.add(borrow); // kept in memory so a later return can find and close it
 		     writeLoansToFile(LOANS_FILE);
 		     System.out.println("The book has been successfully loaned to " + loanPatron.getName() +
@@ -541,7 +533,7 @@ public class LibraryManager_22053376 {
 			 String title, author;
 			 boolean foundBook = false;
 			 
-			 Book_22053376 returnBook = null;
+			 Book returnBook = null;
 			 
 			 System.out.println("\n---------------------");
 		     System.out.println("*RETURN BOOK*");
@@ -564,7 +556,7 @@ public class LibraryManager_22053376 {
 		     
 		     String patronID; 
 		     boolean foundPatron = false;
-		     Patron_22053376 returnPatron = null;
+		     Patron returnPatron = null;
 		     System.out.println("Enter the patron ID: ");
 		     patronID = readLine();
 		     
@@ -592,7 +584,7 @@ public class LibraryManager_22053376 {
 		        // count was decremented on whoever happened to be typed in: the borrower
 		        // stayed credited with the book forever while an unrelated patron went to
 		        // -1 books borrowed, and that negative was written to patronList.csv.
-		        Borrows_22053376 loan = findOpenLoan(returnBook);
+		        Borrows loan = findOpenLoan(returnBook);
 		        if (loan == null) {
 		            System.out.println("'" + returnBook.getTitle() + "' is marked as out, but there is no "
 		                    + "loan record for it. Nothing has been changed.");
@@ -622,16 +614,16 @@ public class LibraryManager_22053376 {
 		 
 
 		 //Finds a book by its ISBN, or null.
-		 private static Book_22053376 findBookByISBN(String isbn) {
-			 for (Book_22053376 book : books) {
+		 private static Book findBookByISBN(String isbn) {
+			 for (Book book : books) {
 				 if (book.getISBN().equals(isbn)) return book;
 			 }
 			 return null;
 		 }
 
 		 //Finds a patron by ID, or null.
-		 private static Patron_22053376 findPatronByID(String id) {
-			 for (Patron_22053376 patron : patrons) {
+		 private static Patron findPatronByID(String id) {
+			 for (Patron patron : patrons) {
 				 if (patron.getPatronID().equals(id)) return patron;
 			 }
 			 return null;
@@ -640,8 +632,8 @@ public class LibraryManager_22053376 {
 		 /**
 		  * Finds the open loan of this book, whoever holds it, or null if it is not out.
 		  */
-		 private static Borrows_22053376 findOpenLoan(Book_22053376 book) {
-			 for (Borrows_22053376 loan : loans) {
+		 private static Borrows findOpenLoan(Book book) {
+			 for (Borrows loan : loans) {
 				 if (loan.isOnLoan() && loan.getBook() == book) return loan;
 			 }
 			 return null;
@@ -672,8 +664,8 @@ public class LibraryManager_22053376 {
 								 + ": expected at least 4 fields, found " + item.length);
 						 continue;
 					 }
-					 Patron_22053376 patron = findPatronByID(item[0].trim());
-					 Book_22053376 book = findBookByISBN(item[1].trim());
+					 Patron patron = findPatronByID(item[0].trim());
+					 Book book = findBookByISBN(item[1].trim());
 					 if (patron == null || book == null) {
 						 System.out.println("Skipping line " + lineNumber + " of " + loansFile
 								 + ": unknown " + (patron == null ? "patron " + item[0].trim()
@@ -701,7 +693,7 @@ public class LibraryManager_22053376 {
 								 + ", but the catalogue marks it available. Treating it as returned.");
 						 returned = due;
 					 }
-					 loans.add(new Borrows_22053376(book, patron, borrowed, due, returned));
+					 loans.add(new Borrows(book, patron, borrowed, due, returned));
 				 }
 			 } catch (FileNotFoundException e) {
 				 System.out.println("File not found: " + loansFile);
@@ -714,7 +706,7 @@ public class LibraryManager_22053376 {
 		  */
 		 private static void writeLoansToFile(String loansFile) {
 			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(loansFile))) {
-				 for (Borrows_22053376 loan : loans) {
+				 for (Borrows loan : loans) {
 					 writer.write(loan.toCSVFormat());
 					 writer.newLine();
 				 }
@@ -725,7 +717,7 @@ public class LibraryManager_22053376 {
 		 }
 
 		 //Method to write the books to book list
-		 private static void writeBooksToFile(String booksFile, List<Book_22053376> books) {
+		 private static void writeBooksToFile(String booksFile, List<Book> books) {
 		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(booksFile))) {
 		        	for (int i = 0; i < books.size(); i++) {
 		                writer.write(books.get(i).getTitle() + "," + books.get(i).getAuthor() + "," + books.get(i).getISBN() + "," + books.get(i).getAvailability());
@@ -739,7 +731,7 @@ public class LibraryManager_22053376 {
 		
 		 
 		 //Method to write patrons to patron list
-		 private static void writePatronsToFile(String patronsFile, List<Patron_22053376> patrons) {
+		 private static void writePatronsToFile(String patronsFile, List<Patron> patrons) {
 		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(patronsFile))) {
 		        	for (int i = 0; i < patrons.size(); i++) {
 		                writer.write(patrons.get(i).getName() + "," + patrons.get(i).getPatronID() + "," + patrons.get(i).getBooksBorrowed());

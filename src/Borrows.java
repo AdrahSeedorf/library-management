@@ -1,30 +1,25 @@
-/**
- * 
- */
-
-/**
- * {Student ID: 22053376
-Name: Seedorf Obeng-Mireku
-Campus: Parramatta South
-Tutor Name: Albany Asher
-Class Day: Tuesday
-Class Time: 1900 - 2100}
- */
-
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-
-public class Borrows_22053376 {
-	private Book_22053376 book;
-	private Patron_22053376 patron;
+/**
+ * One loan: which book, to which patron, when it went out, when it is due, and
+ * when it came back.
+ *
+ * A null return date means the book is still out. That distinction is what lets
+ * borrowedBooks.csv record a completed loan rather than only an opened one.
+ *
+ * @author Seedorf Obeng-Mireku
+ */
+public class Borrows {
+	private Book book;
+	private Patron patron;
 	private LocalDate borrowingDate;
 	private LocalDate dueDate;
 	/** When the book came back, or null while it is still out. */
 	private LocalDate returnDate;
 
 
-	public Borrows_22053376(Book_22053376 book, Patron_22053376 patron) {
+	public Borrows(Book book, Patron patron) {
 		this.book = book;
 		this.patron = patron;
 		this.borrowingDate = LocalDate.now();
@@ -39,7 +34,7 @@ public class Borrows_22053376 {
 	 * wrong for one being loaded from the file -- using it would silently reset every
 	 * historic borrowing date to the day the program was last started.
 	 */
-	public Borrows_22053376(Book_22053376 book, Patron_22053376 patron,
+	public Borrows(Book book, Patron patron,
 			LocalDate borrowingDate, LocalDate dueDate, LocalDate returnDate) {
 		this.book = book;
 		this.patron = patron;
@@ -62,22 +57,22 @@ public class Borrows_22053376 {
 	}
 
 
-	public Book_22053376 getBook() {
+	public Book getBook() {
 		return book;
 	}
 
 
-	public void setBook(Book_22053376 book) {
+	public void setBook(Book book) {
 		this.book = book;
 	}
 
 
-	public Patron_22053376 getPatron() {
+	public Patron getPatron() {
 		return patron;
 	}
 
 
-	public void setPatron(Patron_22053376 patron) {
+	public void setPatron(Patron patron) {
 		this.patron = patron;
 	}
 
