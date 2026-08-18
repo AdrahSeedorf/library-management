@@ -38,8 +38,8 @@ directory. Then run the tests:
 
 | Menu | Actions |
 |---|---|
-| Patron Management | search by ID, add a patron (IDs assigned sequentially) |
-| Book Management | check availability, add a book, remove a book |
+| Patron Management | search by ID, list all patrons, add a patron (IDs assigned sequentially) |
+| Book Management | check availability, list all books, add a book, remove a book |
 | Loans Management | loan a book to a patron, return a borrowed book |
 
 Three CSV files hold the state. `booklist.csv` is title, author, ISBN and
@@ -56,7 +56,7 @@ available and `patronList.csv` credits 1001 with zero books borrowed.
 
 Each was reproduced against the original code before being fixed, and each has a
 test in `regression_test.sh`. Running that suite against the first commit gives
-6 passed, 13 failed; against the current code, 19 passed.
+6 passed, 13 failed; against the current code, 21 passed.
 
 **1. A mistyped key killed the program.** Menus read input with
 `Scanner.nextInt()`, which throws `InputMismatchException` on anything that is not
@@ -97,6 +97,24 @@ outstanding and the file only ever grew.
 
 Malformed input lines are now reported by line number and skipped rather than
 throwing out of `main`.
+
+## Beyond the repairs
+
+Two changes that were not bug fixes:
+
+**Each rule now lives in one place.** `Book.checkBookOut`, `Book.returnBook`,
+`Patron.borrowBook` and `Patron.returnBook` existed but were never called — the
+manager re-implemented all four inline, so every loan rule existed twice. The two
+copies had drifted, and that drift caused defect 5: the unused `Patron.returnBook`
+guarded against a negative count, and the manager's inline copy did not. The
+methods used to print to `System.out`, which is why calling them was awkward and
+duplicating them was easy; they now change state and return whether it applied,
+leaving the caller to decide what to say.
+
+**The catalogue and register can be viewed.** `outputBookCatalogue` and
+`outputListOfPatrons` were written, formatted and unreachable — their only call
+sites were commented out. A library system with no way to list its books now has
+one.
 
 ## Structure
 
