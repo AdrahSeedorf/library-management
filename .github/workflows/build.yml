@@ -35,4 +35,13 @@ jobs:
       # A Linux CI run is what would have caught it on the first push.
       - name: Check the jar actually runs
         run: |
-          printf '4\n' | java -jar target/library-management-1.0.0.jar | grep -q 'End of Program'
+          # Against a COPY of the data, not the checked-out files. The program
+          # rewrites its data files on exit, so running it in the repository root
+          # would have CI quietly mutating the working tree -- harmless while the
+          # data round-trips exactly, and a silent corruption the day it does not.
+          # Using the data-directory argument also exercises that feature.
+          tmp="$(mktemp -d)"
+          cp booklist.csv patronList.csv borrowedBooks.csv "$tmp/"
+          printf '4\n' | java -jar target/library-management-1.0.0.jar "$tmp" | grep -q 'End of Program'
+          diff <(sort booklist.csv) <(sort "$tmp/booklist.csv")
+          diff <(sort patronList.csv) <(sort "$tmp/patronList.csv")
