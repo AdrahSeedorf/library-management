@@ -17,6 +17,27 @@ BUILD=$(mktemp -d)
 WORK=$(mktemp -d)
 trap 'rm -rf "$BUILD" "$WORK"' EXIT
 
+if ! command -v javac >/dev/null 2>&1; then
+    cat <<'MSG'
+No JDK found.
+
+`javac` is not on the PATH, so there is nothing to compile the sources with.
+A Java RUNTIME alone is not enough, and neither is the JRE that Eclipse bundles
+for its own use -- both can run a program without being able to build one.
+
+On macOS, with Homebrew:
+
+    brew install --cask temurin
+
+Then check both halves are present:
+
+    java -version
+    javac -version
+
+MSG
+    exit 1
+fi
+
 if ! javac -d "$BUILD" src/*.java 2>"$WORK/javac.log"; then
     echo "COMPILE FAILED"; cat "$WORK/javac.log"; exit 1
 fi
