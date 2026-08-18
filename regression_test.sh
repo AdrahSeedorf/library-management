@@ -156,14 +156,14 @@ check "the register lists every patron ($PATRON_ROWS of 15)" \
 echo
 echo "Loans"
 
-fresh; OUT=$(run '3\n1\n1984\nGeorge Orwell\n1002\n2\n1984\nGeorge Orwell\n1001\n3\n4\n')
+fresh; OUT=$(run '3\n1\n1984\nGeorge Orwell\n1002\n2\n1984\nGeorge Orwell\n1001\n4\n4\n')
 check "the wrong patron cannot return a book" \
     "$(grep -q 'is on loan to Grace Hopper, not to Alan Turing' <<<"$OUT" && echo yes)" "$OUT"
 check "a refused return leaves the borrow count alone (never negative)" \
     "$(grep -q '^Alan Turing,1001,0$' "$WORK/run/patronList.csv" && echo yes)" \
     "$(grep '^Alan Turing' "$WORK/run/patronList.csv")"
 
-fresh; run '3\n1\n1984\nGeorge Orwell\n1002\n2\n1984\nGeorge Orwell\n1002\n3\n4\n' >/dev/null
+fresh; run '3\n1\n1984\nGeorge Orwell\n1002\n2\n1984\nGeorge Orwell\n1002\n4\n4\n' >/dev/null
 check "a correct return clears the borrow count" \
     "$(grep -q '^Grace Hopper,1002,0$' "$WORK/run/patronList.csv" && echo yes)" \
     "$(grep '^Grace Hopper' "$WORK/run/patronList.csv")"
@@ -171,7 +171,7 @@ check "a return is recorded in the loan file" \
     "$(awk -F, 'END{exit !($5 != "")}' "$WORK/run/borrowedBooks.csv" && echo yes)" \
     "$(cat "$WORK/run/borrowedBooks.csv")"
 
-fresh; OUT=$(run '3\n1\n1984\nGeorge Orwell\n1002\n1\n1984\nGeorge Orwell\n1003\n3\n4\n')
+fresh; OUT=$(run '3\n1\n1984\nGeorge Orwell\n1002\n1\n1984\nGeorge Orwell\n1003\n\n4\n4\n')
 check "a book already out cannot be loaned again" \
     "$(grep -q 'has already been loaned out' <<<"$OUT" && echo yes)" "$OUT"
 
@@ -236,6 +236,41 @@ run '2\n4\nOnly Book\nSome Author\n5\n4\n' >/dev/null
 check "but a genuinely emptied catalogue is still saved" \
     "$([ -e "$WORK/run/booklist.csv" ] && [ ! -s "$WORK/run/booklist.csv" ] && echo yes)" \
     "$(grep -c '' "$WORK/run/booklist.csv") lines remain"
+
+# ---------------------------------------------------------------------------
+echo
+echo "Reservations"
+
+# 1002 borrows 1984; 1003 then 1004 are refused and join the queue.
+QUEUE='3\n1\n1984\nGeorge Orwell\n1002\n1\n1984\nGeorge Orwell\n1003\n1\n1984\nGeorge Orwell\n1004\n'
+
+fresh; OUT=$(run "${QUEUE}4\n4\n")
+check "a refused loan offers a place in the queue" \
+    "$(grep -q 'Linus Torvalds is number 1 in the queue' <<<"$OUT" && echo yes)" "$OUT"
+check "the queue is first-come-first-served" \
+    "$(grep -q 'Ada Lovelace is number 2 in the queue' <<<"$OUT" && echo yes)" "$OUT"
+
+fresh; OUT=$(run "${QUEUE}1\n1984\nGeorge Orwell\n1003\n4\n4\n")
+check "a patron cannot join the same queue twice" \
+    "$(grep -q 'is already in the queue' <<<"$OUT" && echo yes)" "$OUT"
+
+fresh; OUT=$(run "${QUEUE}2\n1984\nGeorge Orwell\n1002\n4\n4\n")
+check "returning the book serves the front of the queue" \
+    "$(grep -q "RESERVED: set '1984' aside for Linus Torvalds" <<<"$OUT" && echo yes)" "$OUT"
+check "and reports who is still waiting" \
+    "$(grep -q '1 other patron(s) still waiting' <<<"$OUT" && echo yes)" "$OUT"
+check "the served reservation is recorded as fulfilled" \
+    "$(grep -q '^1003,.*,FULFILLED$' "$WORK/run/reservations.csv" && echo yes)" \
+    "$(cat "$WORK/run/reservations.csv")"
+
+# The queue must survive a restart, with the served patron out of it.
+OUT=$(run '3\n3\n4\n4\n')
+check "the queue is reloaded from file, minus whoever was served" \
+    "$(grep -q '1. Ada Lovelace' <<<"$OUT" && ! grep -q 'Linus Torvalds' <<<"$OUT" && echo yes)" "$OUT"
+
+fresh; OUT=$(run '3\n3\n4\n4\n')
+check "an empty queue says so rather than printing nothing" \
+    "$(grep -q 'Nobody is waiting for anything' <<<"$OUT" && echo yes)" "$OUT"
 
 echo
 echo "-----------------------------------------"

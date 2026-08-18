@@ -104,6 +104,7 @@ public class LibraryManager {
 		public static final String BOOKS_FILE = "booklist.csv";
 		public static final String PATRONS_FILE = "patronList.csv";
 		public static final String LOANS_FILE = "borrowedBooks.csv";
+		public static final String RESERVATIONS_FILE = "reservations.csv";
 
 		public static ArrayList<Book> books = new ArrayList<>(); //An arrayList named books is created to store books
 	    public static ArrayList<Patron> patrons = new ArrayList<>(); //An arrayList named patrons is created to store patrons
@@ -113,6 +114,9 @@ public class LibraryManager {
 	     * returns went unchecked.
 	     */
 	    public static ArrayList<Borrows> loans = new ArrayList<>();
+
+	    /** Every reservation, waiting or closed, in the order they were placed. */
+	    public static ArrayList<Reservation> reservations = new ArrayList<>();
 
 	    /**
 	     * Whether each data file was readable at startup.
@@ -230,14 +234,15 @@ public class LibraryManager {
 		public static int loanMenu() {
 			int option = 0;
 			
-			while (!(option == 3)) {
+			while (!(option == 4)) {
 		     	System.out.println("\n---------------------");
 				System.out.println("Loans Management");
 		     	System.out.println("---------------------");
 				System.out.println("1. Loan Book");
 				System.out.println("2. Return Book");
-				System.out.println("3. Exit sub-menu");
-				option = readMenuChoice(1, 3);
+				System.out.println("3. View Reservations");
+				System.out.println("4. Exit sub-menu");
+				option = readMenuChoice(1, 4);
 				if (option == 1) {
 					loanBook();
 				}
@@ -245,6 +250,9 @@ public class LibraryManager {
 					returnBorrowedBook();
 				}
 				else if (option == 3) {
+					outputReservations();
+				}
+				else if (option == 4) {
 					System.out.println("Loan Menu Exited");
 					break;
 				}
@@ -549,6 +557,7 @@ public class LibraryManager {
 		     }
 		     if(!loanBook.getAvailability()) { //If the availability of the book is false, it means it has already been loaned out to a patron
 		    	 System.out.println("The book '" + title + "' by '" + author + "' has already been loaned out." );
+		    	 offerHold(loanBook);
 		    	 return;
 		     }
 		     
@@ -665,6 +674,7 @@ public class LibraryManager {
 		        }
 		        System.out.println("The book '" + returnBook.getTitle() + "' has been returned by "
 		                + returnPatron.getName());
+		        serveNextInQueue(returnBook);
 		 }
 		 
 		 
@@ -683,6 +693,118 @@ public class LibraryManager {
 				 if (patron.getPatronID().equals(id)) return patron;
 			 }
 			 return null;
+		 }
+
+		 /** Every book with somebody waiting, and who is waiting for it. */
+		 public static void outputReservations() {
+			 System.out.println("\n===== Reservations =====");
+			 System.out.println("--------------------------");
+			 int shown = 0;
+			 for (Book book : books) {
+				 List<Reservation> queue = queueFor(book);
+				 if (queue.isEmpty()) continue;
+				 shown++;
+				 Borrows open = findOpenLoan(book);
+				 System.out.printf("%n'%s' by %s%n", book.getTitle(), book.getAuthor());
+				 System.out.println("  currently: " + (open == null
+						 ? "on the shelf"
+						 : "with " + open.getPatron().getName() + ", due " + open.getDueDate()));
+				 for (int i = 0; i < queue.size(); i++) {
+					 Reservation r = queue.get(i);
+					 System.out.printf("  %d. %-28s (waiting since %s)%n",
+							 i + 1, r.getPatron().getName(), r.getPlacedOn());
+				 }
+			 }
+			 if (shown == 0) System.out.println("\nNobody is waiting for anything.");
+		 }
+
+		 /**
+		  * Offers to put a patron in the queue for a book that is currently out.
+		  *
+		  * Being told "already loaned out" and nothing else is a dead end -- the patron
+		  * has to keep coming back to ask. A queue turns that into a promise, and it is
+		  * the natural place to ask, because it is the exact moment the answer was no.
+		  */
+		 private static void offerHold(Book book) {
+			 List<Reservation> queue = queueFor(book);
+			 System.out.println(queue.isEmpty()
+					 ? "Nobody is waiting for it."
+					 : queue.size() + " patron(s) are already waiting for it.");
+			 System.out.println("Reserve it? Enter a patron ID, or press Enter to skip: ");
+			 String patronID = readLine();
+			 if (patronID.isEmpty()) return;
+
+			 Patron patron = findPatronByID(patronID);
+			 if (patron == null) {
+				 System.out.println("The patron with patron ID " + patronID + " was not found.");
+				 return;
+			 }
+			 // Holding a book you are already holding is not a queue position, it is a
+			 // second one -- it would let a patron jump their own place.
+			 if (alreadyWaiting(book, patron)) {
+				 System.out.println(patron.getName() + " is already in the queue for '"
+						 + book.getTitle() + "', at position " + positionOf(book, patron) + ".");
+				 return;
+			 }
+			 Borrows open = findOpenLoan(book);
+			 if (open != null && open.getPatron() == patron) {
+				 System.out.println(patron.getName() + " already has this book on loan.");
+				 return;
+			 }
+
+			 reservations.add(new Reservation(book, patron));
+			 writeReservationsToFile(RESERVATIONS_FILE);
+			 System.out.println(patron.getName() + " is number " + positionOf(book, patron)
+					 + " in the queue for '" + book.getTitle() + "'.");
+		 }
+
+		 /** 1-based position of a patron in a book's queue, or 0 if they are not in it. */
+		 public static int positionOf(Book book, Patron patron) {
+			 List<Reservation> queue = queueFor(book);
+			 for (int i = 0; i < queue.size(); i++) {
+				 if (queue.get(i).getPatron() == patron) return i + 1;
+			 }
+			 return 0;
+		 }
+
+		 /**
+		  * Marks the front of the queue as fulfilled, now that the book is back.
+		  *
+		  * Announcing rather than auto-loaning is deliberate. A hold is a claim on the
+		  * next copy, not a loan: the patron is not standing there, and issuing a book
+		  * to someone who is absent would mark it unavailable while it sits on a shelf.
+		  * The librarian is told who to set it aside for.
+		  */
+		 private static void serveNextInQueue(Book book) {
+			 List<Reservation> queue = queueFor(book);
+			 if (queue.isEmpty()) return;
+
+			 Reservation next = queue.get(0);
+			 next.setStatus(Reservation.Status.FULFILLED);
+			 writeReservationsToFile(RESERVATIONS_FILE);
+			 System.out.println("RESERVED: set '" + book.getTitle() + "' aside for "
+					 + next.getPatron().getName() + " (patron " + next.getPatron().getPatronID()
+					 + "), who has been waiting since " + next.getPlacedOn() + ".");
+			 if (queue.size() > 1) {
+				 System.out.println("  " + (queue.size() - 1) + " other patron(s) still waiting.");
+			 }
+		 }
+
+		 /** Everyone still waiting for this book, in the order they joined. */
+		 public static List<Reservation> queueFor(Book book) {
+			 List<Reservation> waiting = new ArrayList<>();
+			 for (Reservation r : reservations) {
+				 if (r.isWaiting() && r.getBook() == book) waiting.add(r);
+			 }
+			 return waiting;
+		 }
+
+		 /** Whether this patron is already waiting for this book. */
+		 private static boolean alreadyWaiting(Book book, Patron patron) {
+			 for (Reservation r : queueFor(book)) {
+				 if (r.getPatron() == patron) return true;
+			 }
+			 return false;
 		 }
 
 		 /**
@@ -757,6 +879,59 @@ public class LibraryManager {
 		 }
 
 		 /**
+		  * Reads the reservation queue. Must run after books and patrons, like loans.
+		  */
+		 public static void readReservationsFromFile(String file) {
+			 File f = new File(file);
+			 if (!f.exists()) return;
+
+			 int lineNumber = 0;
+			 try (Scanner sc = new Scanner(f)) {
+				 while (sc.hasNextLine()) {
+					 String line = sc.nextLine();
+					 lineNumber++;
+					 if (line.trim().isEmpty()) continue;
+					 String[] item = Csv.split(line);
+					 if (item.length < 4) {
+						 System.out.println("Skipping line " + lineNumber + " of " + file
+								 + ": expected 4 fields, found " + item.length);
+						 continue;
+					 }
+					 Patron patron = findPatronByID(item[0]);
+					 Book book = findBookByISBN(item[1]);
+					 if (patron == null || book == null) {
+						 System.out.println("Skipping line " + lineNumber + " of " + file
+								 + ": unknown " + (patron == null ? "patron " + item[0] : "ISBN " + item[1]));
+						 continue;
+					 }
+					 try {
+						 reservations.add(new Reservation(book, patron, LocalDate.parse(item[2]),
+								 Reservation.Status.valueOf(item[3])));
+					 } catch (DateTimeParseException | IllegalArgumentException e) {
+						 System.out.println("Skipping line " + lineNumber + " of " + file
+								 + ": " + e.getMessage());
+					 }
+				 }
+			 } catch (FileNotFoundException e) {
+				 System.out.println("File not found: " + file);
+			 }
+		 }
+
+		 /** Rewrites the reservation file; a fulfilment CHANGES a line, so appending will not do. */
+		 private static void writeReservationsToFile(String file) {
+			 if (reservations.isEmpty() && !new File(file).exists()) return; // nothing to say yet
+			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+				 for (Reservation r : reservations) {
+					 writer.write(r.toCSVFormat());
+					 writer.newLine();
+				 }
+			 } catch (IOException e) {
+				 System.out.println("An error occurred while writing the reservations to the file.");
+				 e.printStackTrace();
+			 }
+		 }
+
+		 /**
 		  * Rewrites the whole loan file. A return has to be able to CHANGE an existing
 		  * line, which appending alone cannot do.
 		  */
@@ -827,7 +1002,8 @@ public class LibraryManager {
 				
 				readBooksFromFile(BOOKS_FILE, books); //Book data is read from booklist.csv and stored in bookList arrayList
 		        readPatronsFromFile(PATRONS_FILE, patrons); //Patron data is read from patronList.csv and stored in patronList
-		        readLoansFromFile(LOANS_FILE); //Must come last: each loan refers to a book and a patron
+		        readLoansFromFile(LOANS_FILE); //Must come after books and patrons: each loan refers to both
+		        readReservationsFromFile(RESERVATIONS_FILE); //Same ordering requirement
 
 		        int option = displayMainMenu();
 
