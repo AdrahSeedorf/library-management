@@ -56,7 +56,7 @@ available and `patronList.csv` credits 1001 with zero books borrowed.
 
 Each was reproduced against the original code before being fixed, and each has a
 test in `regression_test.sh`. Running that suite against the first commit gives
-6 passed, 13 failed; against the current code, 21 passed.
+6 passed, 13 failed; against the current code, 28 passed.
 
 **1. A mistyped key killed the program.** Menus read input with
 `Scanner.nextInt()`, which throws `InputMismatchException` on anything that is not
@@ -98,6 +98,31 @@ outstanding and the file only ever grew.
 Malformed input lines are now reported by line number and skipped rather than
 throwing out of `main`.
 
+A second pass over the repaired program turned up five more, all found the same
+way:
+
+**7. Add Patron crashed on a non-numeric patron ID.** IDs are stored as text and
+the loader accepts any, but `addPatron` ran `Integer.parseInt` over every existing
+one to find the highest. A single legacy membership number was fatal.
+
+**8. A comma in a title silently corrupted the catalogue.** The program lets you
+type one and `split(",")` cannot survive it — the book stayed in the catalogue
+with the author, ISBN and availability all shifted one field along, and no error,
+because the line still had enough fields to look valid. Values are now quoted on
+write and parsed quote-aware on read.
+
+**9. A missing data file became an empty one.** With `booklist.csv` absent the
+program reported "File not found", carried on with nothing, and wrote an empty
+`booklist.csv` on exit — turning a misplaced file into a lost one. Writing a file
+that was never read is now refused; a file the user genuinely emptied is still
+saved.
+
+**10. Blank names and titles were accepted**, producing records with an empty key
+that nothing could look up again.
+
+**11. Duplicate ISBNs were accepted**, which made loans and returns ambiguous
+since both match on ISBN.
+
 ## Beyond the repairs
 
 Two changes that were not bug fixes:
@@ -124,13 +149,12 @@ one.
 | `Book.java` | title, author, ISBN, availability |
 | `Patron.java` | name, ID, current borrow count |
 | `Borrows.java` | one loan: book, patron, borrowed/due/return dates |
+| `Csv.java` | quote-aware splitting and quoting for the data files |
 
 ## Known limitations
 
 Honest about what it is not:
 
-- **Titles and authors containing commas** would break the CSV parsing. None of
-  the shipped data does, and quoted-field handling was out of scope.
 - **Lookups are by exact title and author**, and are case-sensitive. A real
   system would search on partial matches.
 - **`main` is static state.** The catalogue, register and loan list are static
