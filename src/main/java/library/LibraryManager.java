@@ -1,3 +1,5 @@
+package library;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -6,6 +8,9 @@ import java.util.Scanner;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
@@ -28,6 +33,44 @@ public class LibraryManager {
 
 	
 		static Scanner keyboard = new Scanner(System.in);
+
+		/**
+		 * Where the four data files live. Defaults to the working directory.
+		 *
+		 * Relative filenames resolved against the process's working directory cannot be
+		 * redirected from inside the JVM, which made the program impossible to test
+		 * without a shell to cd with. Naming the directory once fixes that, and gives
+		 * the program a genuine feature: `java library.LibraryManager /path/to/data`
+		 * runs against a different library.
+		 */
+		public static Path dataDir = Paths.get(".");
+
+		/** Resolves a data file name against {@link #dataDir}. */
+		public static File dataFile(String name) {
+			return dataDir.resolve(name).toFile();
+		}
+
+		/** Points input at another source. Used by tests to drive the menus. */
+		public static void useInput(InputStream in) {
+			keyboard = new Scanner(in);
+		}
+
+		/**
+		 * Clears every collection and flag, so one run cannot leak into the next.
+		 *
+		 * Needed because the catalogue, the register, the loans and the reservations are
+		 * all static. That is workable for a program that runs once and exits, and it is
+		 * exactly what makes it awkward to test -- the second test in a JVM would
+		 * otherwise start with the first one's library.
+		 */
+		public static void reset() {
+			books.clear();
+			patrons.clear();
+			loans.clear();
+			reservations.clear();
+			booksFileLoaded = false;
+			patronsFileLoaded = false;
+		}
 
 		/**
 		 * Reads a menu choice between min and max, re-prompting until it gets one.
@@ -273,7 +316,7 @@ public class LibraryManager {
 		        // -- and because the exit path REWRITES this file from whatever is in
 		        // memory, every run silently deleted every book past the twentieth.
 		        int lineNumber = 0;
-		        try (Scanner bk = new Scanner(new File(booksFile))) {
+		        try (Scanner bk = new Scanner(dataFile(booksFile))) {
 		            while (bk.hasNextLine()) {
 		                str = bk.nextLine();
 		                lineNumber++;
@@ -312,7 +355,7 @@ public class LibraryManager {
 
 		        // No cap, for the same reason as readBooksFromFile: the old limit of 10
 		        // silently deleted every patron past the tenth on exit.
-		        try (Scanner pt = new Scanner(new File(patronsFile))) {
+		        try (Scanner pt = new Scanner(dataFile(patronsFile))) {
 		            int lineNumber = 0;
 		            while (pt.hasNextLine()) {
 		                str = pt.nextLine();
@@ -827,7 +870,7 @@ public class LibraryManager {
 		  * zero books. Two sources against one, so the loan is treated as stale history.
 		  */
 		 public static void readLoansFromFile(String loansFile) {
-			 File file = new File(loansFile);
+			 File file = dataFile(loansFile);
 			 if (!file.exists()) return; // no history yet is not an error
 
 			 int lineNumber = 0;
@@ -882,7 +925,7 @@ public class LibraryManager {
 		  * Reads the reservation queue. Must run after books and patrons, like loans.
 		  */
 		 public static void readReservationsFromFile(String file) {
-			 File f = new File(file);
+			 File f = dataFile(file);
 			 if (!f.exists()) return;
 
 			 int lineNumber = 0;
@@ -919,8 +962,8 @@ public class LibraryManager {
 
 		 /** Rewrites the reservation file; a fulfilment CHANGES a line, so appending will not do. */
 		 private static void writeReservationsToFile(String file) {
-			 if (reservations.isEmpty() && !new File(file).exists()) return; // nothing to say yet
-			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+			 if (reservations.isEmpty() && !dataFile(file).exists()) return; // nothing to say yet
+			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFile(file)))) {
 				 for (Reservation r : reservations) {
 					 writer.write(r.toCSVFormat());
 					 writer.newLine();
@@ -936,7 +979,7 @@ public class LibraryManager {
 		  * line, which appending alone cannot do.
 		  */
 		 private static void writeLoansToFile(String loansFile) {
-			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(loansFile))) {
+			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFile(loansFile)))) {
 				 for (Borrows loan : loans) {
 					 writer.write(loan.toCSVFormat());
 					 writer.newLine();
@@ -967,7 +1010,7 @@ public class LibraryManager {
 
 		 //Method to write the books to book list
 		 private static void writeBooksToFile(String booksFile, List<Book> books) {
-		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(booksFile))) {
+		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFile(booksFile)))) {
 		        	for (int i = 0; i < books.size(); i++) {
 		                writer.write(Csv.field(books.get(i).getTitle()) + ","
 	                        + Csv.field(books.get(i).getAuthor()) + ","
@@ -984,7 +1027,7 @@ public class LibraryManager {
 		 
 		 //Method to write patrons to patron list
 		 private static void writePatronsToFile(String patronsFile, List<Patron> patrons) {
-		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(patronsFile))) {
+		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFile(patronsFile)))) {
 		        	for (int i = 0; i < patrons.size(); i++) {
 		                writer.write(Csv.field(patrons.get(i).getName()) + ","
 	                        + Csv.field(patrons.get(i).getPatronID()) + ","
@@ -998,6 +1041,10 @@ public class LibraryManager {
 		    }
 		 
 			public static void main(String[] args) {
+				if (args.length > 0) {
+					dataDir = Paths.get(args[0]);
+					System.out.println("Using data directory: " + dataDir.toAbsolutePath().normalize());
+				}
 				// TODO Auto-generated method stub
 				
 				readBooksFromFile(BOOKS_FILE, books); //Book data is read from booklist.csv and stored in bookList arrayList

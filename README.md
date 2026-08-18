@@ -1,5 +1,7 @@
 # Library Management System
 
+[![build](https://github.com/AdrahSeedorf/library-management/actions/workflows/build.yml/badge.svg)](https://github.com/AdrahSeedorf/library-management/actions/workflows/build.yml)
+
 A console application for managing a small library — a book catalogue, a patron
 register, loans, and a reservation queue, persisted to CSV.
 
@@ -8,10 +10,10 @@ code**: every defect below was found by compiling and running the program, not b
 reading it, and each one has a test that fails against the original commit.
 
 ```
-$ ./regression_test.sh
+$ mvn test
 
-           against the original commit:   8 passed, 28 failed
-           against the current code:     36 passed,  0 failed
+           against the original commit:   8 of 36 shell cases passed
+           against the current code:     38 of 38 JUnit tests passed
 ```
 
 That is the interesting part of this repository. The eleven defects are catalogued
@@ -107,16 +109,28 @@ ambiguous.
 
 ## Running it
 
-Needs a JDK (11 or newer). From the project root:
+Needs a JDK 17 or newer and Maven.
 
 ```bash
-javac -d out src/*.java
-java -cp out LibraryManager
-./regression_test.sh
+mvn test                                          # 38 tests
+mvn package                                       # builds an executable jar
+java -jar target/library-management-1.0.0.jar     # run it
 ```
 
-Run it from the project root — it reads and writes the CSVs in the working
-directory.
+By default it reads and writes the CSVs in the working directory. Pass a path to
+point it somewhere else, which is also how the tests give each case its own
+library:
+
+```bash
+java -jar target/library-management-1.0.0.jar /path/to/another/library
+```
+
+Without Maven, plain javac still works:
+
+```bash
+javac -d out $(find src/main/java -name '*.java')
+java -cp out library.LibraryManager
+```
 
 ## What it does
 
@@ -194,6 +208,10 @@ sites were commented out.
 | `Reservation.java` | one place in the queue for one book |
 | `Csv.java` | quote-aware splitting and quoting for the data files |
 
+Tests live in `src/test/java/library`. `ConsoleTest` drives the menus the way a
+person does and checks what was printed and what landed in the files; `ModelTest`
+exercises the rules and the CSV helpers directly. CI runs both on JDK 17 and 21.
+
 ## Known limitations
 
 Honest about what it is not:
@@ -201,8 +219,9 @@ Honest about what it is not:
 - **Lookups are by exact title and author**, and are case-sensitive. A real system
   would search on partial matches.
 - **`LibraryManager` is doing too much** — menus, persistence and rules in one
-  class, with static state. Extracting the rules would let them be tested without
-  driving stdin, which is what every test currently has to do.
+  class, with static state. `reset()` and a configurable data directory make it
+  testable, but extracting the rules into their own type would let them be tested
+  without driving stdin at all.
 - **Persistence is a full rewrite on clean exit**, so a crash loses the session.
   Loans and reservations are written as they happen; books and patrons are not.
 - **No overdue handling.** Due dates are recorded but nothing acts on them.

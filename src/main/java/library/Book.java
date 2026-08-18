@@ -1,3 +1,5 @@
+package library;
+
 /**
  * A single book in the catalogue.
  *

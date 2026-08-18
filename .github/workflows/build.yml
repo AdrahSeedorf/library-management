@@ -1,0 +1,38 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 17 is the version the pom targets; 21 catches anything that only works
+        # on an older runtime. Both are current LTS releases.
+        java: ['17', '21']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test
+        run: mvn --batch-mode --no-transfer-progress verify
+
+      # Running on Linux is not incidental. One of the defects this project fixed
+      # was a filename whose case only mattered on a case-sensitive filesystem: it
+      # worked on the macOS machine it was written on and failed everywhere else.
+      # A Linux CI run is what would have caught it on the first push.
+      - name: Check the jar actually runs
+        run: |
+          printf '4\n' | java -jar target/library-management-1.0.0.jar | grep -q 'End of Program'

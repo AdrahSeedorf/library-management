@@ -39,3 +39,6 @@ out*/
 
 # macOS noise
 .DS_Store
+
+# Maven build output
+target/

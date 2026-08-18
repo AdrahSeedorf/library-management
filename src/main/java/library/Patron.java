@@ -1,3 +1,5 @@
+package library;
+
 /**
  * A library member, and the count of books they currently hold.
  *
