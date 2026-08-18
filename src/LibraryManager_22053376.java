@@ -33,6 +33,47 @@ public class LibraryManager_22053376 {
 		static Scanner keyboard = new Scanner(System.in);
 
 		/**
+		 * Reads a menu choice between min and max, re-prompting until it gets one.
+		 *
+		 * Every menu previously called keyboard.nextInt() directly, which throws
+		 * InputMismatchException on anything that is not a number and kills the whole
+		 * program with a stack trace. Typing a letter by accident -- or pressing Ctrl-D,
+		 * or piping input that runs out -- ended the session and lost the work in it.
+		 * That is the first thing anyone trying the program is likely to do.
+		 *
+		 * Reading a whole line and parsing it also fixes the leftover-newline problem
+		 * that nextInt() creates, which is why every caller used to need a matching
+		 * nextLine() to clean up after it.
+		 */
+		public static int readMenuChoice(int min, int max) {
+			while (true) {
+				System.out.print("Select an option (" + min + " - " + max + "): ");
+				if (!keyboard.hasNextLine()) {
+					// Input ended: treat as a request to leave rather than an error. The
+					// caller's exit option is always the largest one.
+					System.out.println();
+					return max;
+				}
+				String line = keyboard.nextLine().trim();
+				try {
+					int choice = Integer.parseInt(line);
+					if (choice >= min && choice <= max) {
+						return choice;
+					}
+					System.out.println("Please choose a number between " + min + " and " + max + ".");
+				} catch (NumberFormatException e) {
+					System.out.println("'" + line + "' is not a number. Please choose between "
+							+ min + " and " + max + ".");
+				}
+			}
+		}
+
+		/** Reads a line of text, returning "" rather than throwing if input has ended. */
+		public static String readLine() {
+			return keyboard.hasNextLine() ? keyboard.nextLine().trim() : "";
+		}
+
+		/**
 		 * @param args
 		 */
 		
@@ -55,9 +96,7 @@ public class LibraryManager_22053376 {
 		        	System.out.println("2. Book Management");
 		        	System.out.println("3. Loans Management");
 		        	System.out.println("4. Exit Program");
-		        	System.out.print("Select an option (1 - 4): ");
-		        	
-		        	option  = keyboard.nextInt(); //The input from the user is obtained to perform the corresponding function
+		        	option = readMenuChoice(1, 4); //The input from the user is obtained to perform the corresponding function
 		        	
 		        	 if (option == 1) {
 		 	        	menu = patronMenu();
@@ -90,10 +129,7 @@ public class LibraryManager_22053376 {
 		     	System.out.println("1. Search Patron");
 		     	System.out.println("2. Add Patron");
 		     	System.out.println("3. Exit sub-menu");
-		     	System.out.println("Select an option (1 - 3): ");
-		     	
-		     	option = keyboard.nextInt();
-		     	keyboard.nextLine();
+		     	option = readMenuChoice(1, 3);
 		     	if (option == 1) {
 		     		searchPatron();
 		     	}
@@ -121,10 +157,7 @@ public class LibraryManager_22053376 {
 				System.out.println("2. Add Book");
 				System.out.println("3. Remove Book");
 				System.out.println("4. Exit sub-menu");
-		     	System.out.println("Select an option (1 - 4): ");
-
-				option = keyboard.nextInt();
-				keyboard.nextLine();
+				option = readMenuChoice(1, 4);
 				if (option == 1) {
 					checkAvailability();
 				}
@@ -152,10 +185,7 @@ public class LibraryManager_22053376 {
 				System.out.println("1. Loan Book");
 				System.out.println("2. Return Book");
 				System.out.println("3. Exit sub-menu");
-		     	System.out.println("Select an option (1 - 3): ");
-
-				option = keyboard.nextInt();
-				keyboard.nextLine();
+				option = readMenuChoice(1, 3);
 				if (option == 1) {
 					loanBook();
 				}
@@ -271,11 +301,11 @@ public class LibraryManager_22053376 {
 		     System.out.println("---------------------");
 
 			 System.out.println("\nEnter the title of the book: ");
-			 title = keyboard.nextLine();
+			 title = readLine();
 			 System.out.println("Enter the author of the book: ");
-			 author = keyboard.nextLine();
+			 author = readLine();
 			 System.out.println("Enter the ISBN of the book: ");
-			 isbn = keyboard.nextLine();
+			 isbn = readLine();
 			 availability = true;
 			 Book_22053376 newBook = new Book_22053376(title, author, isbn, availability);
 			 books.add(newBook);
@@ -292,9 +322,9 @@ public class LibraryManager_22053376 {
 		     System.out.println("---------------------");
 		     
 			 System.out.println("\nEnter the title of the book: ");
-			 title = keyboard.nextLine();
+			 title = readLine();
 			 System.out.println("Enter the author of the book: ");
-			 author = keyboard.nextLine();
+			 author = readLine();
 			 boolean removed = false;
 			 for (int i = 0; i < books.size(); i++) {
 				 if (title.equals(books.get(i).getTitle()) && author.equals(books.get(i).getAuthor())) {
@@ -320,9 +350,9 @@ public class LibraryManager_22053376 {
 		     System.out.println("*CHECK AVAILABILITY*");
 		     System.out.println("---------------------");
 			 System.out.println("\nEnter the title of the book: ");
-			 title = keyboard.nextLine();
+			 title = readLine();
 			 System.out.println("Enter the author of the book: ");
-			 author = keyboard.nextLine();
+			 author = readLine();
 			 for (int i = 0; i < books.size(); i++) {
 				 if (title.equals(books.get(i).getTitle()) && author.equals(books.get(i).getAuthor())) {
 				     System.out.printf("\n%-40s %-30s %-40s %-10s%n","Title", "Author", "ISBN", "Available?");
@@ -347,7 +377,7 @@ public class LibraryManager_22053376 {
 		     System.out.println("*ADD PATRON*");
 		     System.out.println("---------------------");
 			 System.out.println("\nEnter the name of the patron: ");
-			 name = keyboard.nextLine();
+			 name = readLine();
 			 if(patrons.isEmpty()) {
 				 id = 1001; //If the patron list is empty, the new patron is given id 1001.
 			 } else {
@@ -375,7 +405,7 @@ public class LibraryManager_22053376 {
 		     System.out.println("*SEARCH PATRON*");
 		     System.out.println("---------------------");
 			 System.out.println("\nEnter the patron ID: ");
-			 patronID = keyboard.nextLine();
+			 patronID = readLine();
 			 for (int i = 0; i < patrons.size(); i++) {
 				 if (patronID.equals(patrons.get(i).getPatronID())) {
 			         System.out.printf("\n%-30s %-30s %-5s%n", "Name", "Patron ID", "Books borrowed");
@@ -402,9 +432,9 @@ public class LibraryManager_22053376 {
 		     System.out.println("*LOAN BOOK*");
 		     System.out.println("---------------------");
 			 System.out.println("Enter the title of the book: ");
-		     title = keyboard.nextLine();
+		     title = readLine();
 		     System.out.println("Enter the author of the book: ");
-		     author = keyboard.nextLine();
+		     author = readLine();
 		     
 		     Book_22053376 loanBook = null;
 		     for (int i = 0; i < books.size(); i++) {
@@ -425,7 +455,7 @@ public class LibraryManager_22053376 {
 		     
 		     String patronID; 
 		     System.out.println("Enter the patron ID: ");
-		     patronID = keyboard.nextLine();
+		     patronID = readLine();
 		     Patron_22053376 loanPatron = null;
 		     for (int i = 0; i < patrons.size(); i++) {
 				 if (patronID.equals(patrons.get(i).getPatronID())) {
@@ -473,9 +503,9 @@ public class LibraryManager_22053376 {
 		     System.out.println("*RETURN BOOK*");
 		     System.out.println("---------------------");
 			 System.out.println("Enter the title of the book: ");
-		     title = keyboard.nextLine();
+		     title = readLine();
 		     System.out.println("Enter the author of the book: ");
-		     author = keyboard.nextLine();
+		     author = readLine();
 			 for (int i = 0; i < books.size(); i++) {
 				 if (title.equals(books.get(i).getTitle()) && author.equals(books.get(i).getAuthor())) {
 					 foundBook = true;
@@ -492,7 +522,7 @@ public class LibraryManager_22053376 {
 		     boolean foundPatron = false;
 		     Patron_22053376 returnPatron = null;
 		     System.out.println("Enter the patron ID: ");
-		     patronID = keyboard.nextLine();
+		     patronID = readLine();
 		     
 		     for (int i = 0; i < patrons.size(); i++) {
 				 if (patronID.equals(patrons.get(i).getPatronID())) {
