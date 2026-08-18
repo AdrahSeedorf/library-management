@@ -132,8 +132,6 @@ public class LibraryManager_22053376 {
 		        	 else if (option == 4) {
 		        		 writeBooksToFile(BOOKS_FILE, books);
 		        		 writePatronsToFile(PATRONS_FILE, patrons);
-		        		 //outputBookCatalogue(books);
-		        		 //outputListOfPatrons(patrons);
 		        		 System.out.println("End of Program");
 		        		 closeProgram = true;
 		        	 }
@@ -143,21 +141,25 @@ public class LibraryManager_22053376 {
 		
 		public static int patronMenu() {
 			int option = 0;
-			while (!(option == 3)) {
+			while (!(option == 4)) {
 		     	System.out.println("\n---------------------");
 				System.out.println("Patron Management");
 		     	System.out.println("---------------------");
 		     	System.out.println("1. Search Patron");
-		     	System.out.println("2. Add Patron");
-		     	System.out.println("3. Exit sub-menu");
-		     	option = readMenuChoice(1, 3);
+		     	System.out.println("2. List All Patrons");
+		     	System.out.println("3. Add Patron");
+		     	System.out.println("4. Exit sub-menu");
+		     	option = readMenuChoice(1, 4);
 		     	if (option == 1) {
 		     		searchPatron();
 		     	}
 		     	else if (option == 2) {
-		     		addPatron();
+		     		outputListOfPatrons(patrons);
 		     	}
 		     	else if (option == 3) {
+		     		addPatron();
+		     	}
+		     	else if (option == 4) {
 		     		System.out.println("Patron Menu Exited");
 		     		break;
 		     	}
@@ -170,25 +172,29 @@ public class LibraryManager_22053376 {
 		public static int bookMenu() {
 			int option = 0; 
 			
-			while (!(option == 4)) {
+			while (!(option == 5)) {
 		     	System.out.println("\n---------------------");
 				System.out.println("Book Management");
 		     	System.out.println("---------------------");
 				System.out.println("1. Check Availability");
-				System.out.println("2. Add Book");
-				System.out.println("3. Remove Book");
-				System.out.println("4. Exit sub-menu");
-				option = readMenuChoice(1, 4);
+				System.out.println("2. List All Books");
+				System.out.println("3. Add Book");
+				System.out.println("4. Remove Book");
+				System.out.println("5. Exit sub-menu");
+				option = readMenuChoice(1, 5);
 				if (option == 1) {
 					checkAvailability();
 				}
 				else if (option == 2) {
-					addBook();
+					outputBookCatalogue(books);
 				}
 				else if (option == 3) {
-					removeBook();
+					addBook();
 				}
 				else if (option == 4) {
+					removeBook();
+				}
+				else if (option == 5) {
 					System.out.println("Book Menu Exited");
 					break;
 				}
@@ -309,7 +315,7 @@ public class LibraryManager_22053376 {
 		 
 		 
 		 //This method displays the books owned by the library with their titles, authors,ISBN, and their availability.
-		 private static void outputBookCatalogue(ArrayList<Book_22053376> books) {
+		 public static void outputBookCatalogue(ArrayList<Book_22053376> books) {
 		        System.out.println("\n===== Book Catalogue in the Library =====");
 		        System.out.println("-------------------------------------------");
 		        System.out.printf("\n%-40s %-30s %-20s %-10s%n","Title", "Author", "ISBN", "Available?");
@@ -323,7 +329,7 @@ public class LibraryManager_22053376 {
 		 
 		 
 		 //This method displays the names of patrons, their patronID and the number of books each patron has borrowed
-		 private static void outputListOfPatrons(ArrayList<Patron_22053376> patrons) {
+		 public static void outputListOfPatrons(ArrayList<Patron_22053376> patrons) {
 		        System.out.println("\n===== List of Patrons =====");
 		        System.out.println("-----------------------------");
 	           System.out.printf("\n%-30s %-20s %-5s%n", "Name", "Patron ID", "Books borrowed");

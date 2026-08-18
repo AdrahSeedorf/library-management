@@ -85,7 +85,7 @@ check "the patron file is read under its real name, not a lowercased one" \
     "$([ ! -e "$WORK/run/patronlist.csv" ] || [ "$WORK/run/patronlist.csv" -ef "$WORK/run/patronList.csv" ] && echo yes)" \
     "a second patronlist.csv was created"
 
-fresh; OUT=$(run '1\n1\n1001\n3\n4\n')
+fresh; OUT=$(run '1\n1\n1001\n4\n4\n')
 check "patrons actually load" \
     "$(grep -q 'Alan Turing' <<<"$OUT" && echo yes)" "$OUT"
 
@@ -95,7 +95,7 @@ echo "Book removal"
 
 fresh; LAST=$(tail -1 "$WORK/run/booklist.csv")
 LAST_TITLE=$(cut -d, -f1 <<<"$LAST"); LAST_AUTHOR=$(cut -d, -f2 <<<"$LAST")
-OUT=$(run "2\n3\n$LAST_TITLE\n$LAST_AUTHOR\n4\n4\n")
+OUT=$(run "2\n4\n$LAST_TITLE\n$LAST_AUTHOR\n5\n4\n")
 check "removing the last book does not crash" \
     "$(! grep -q 'IndexOutOfBoundsException' <<<"$OUT" && echo yes)" "$OUT"
 
@@ -104,18 +104,32 @@ check "removing the last book does not crash" \
 # at all. Both are checked, or this case passes against the old code by accident.
 fresh; TWENTIETH=$(sed -n '20p' "$WORK/run/booklist.csv")
 T20_TITLE=$(cut -d, -f1 <<<"$TWENTIETH"); T20_AUTHOR=$(cut -d, -f2 <<<"$TWENTIETH")
-OUT=$(run "2\n3\n$T20_TITLE\n$T20_AUTHOR\n4\n4\n")
+OUT=$(run "2\n4\n$T20_TITLE\n$T20_AUTHOR\n5\n4\n")
 check "removing the 20th book does not crash" \
     "$(! grep -q 'IndexOutOfBoundsException' <<<"$OUT" && echo yes)" "$OUT"
 
-fresh; OUT=$(run '2\n3\n1984\nGeorge Orwell\n4\n4\n')
+fresh; OUT=$(run '2\n4\n1984\nGeorge Orwell\n5\n4\n')
 check "removal reports the book that was actually removed" \
     "$(grep -q '^1984 by George Orwell has been removed' <<<"$OUT" && echo yes)" \
     "$(grep -i removed <<<"$OUT")"
 
-fresh; OUT=$(run '2\n3\nNo Such Book\nNobody\n4\n4\n')
+fresh; OUT=$(run '2\n4\nNo Such Book\nNobody\n5\n4\n')
 check "removing a missing book says so" \
     "$(grep -q 'was not found in the catalogue' <<<"$OUT" && echo yes)" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
+echo "Listings"
+
+fresh; OUT=$(run '2\n2\n5\n4\n')
+BOOK_ROWS=$(grep -c '^[A-Z0-9].*978-' <<<"$OUT")
+check "the catalogue lists every book ($BOOK_ROWS of 26)" \
+    "$([ "$BOOK_ROWS" -eq 26 ] && echo yes)" "listed $BOOK_ROWS rows"
+
+fresh; OUT=$(run '1\n2\n4\n4\n')
+PATRON_ROWS=$(grep -cE '^[A-Za-z].* 10[0-9][0-9] ' <<<"$OUT")
+check "the register lists every patron ($PATRON_ROWS of 15)" \
+    "$([ "$PATRON_ROWS" -eq 15 ] && echo yes)" "listed $PATRON_ROWS rows"
 
 # ---------------------------------------------------------------------------
 echo
