@@ -23,3 +23,19 @@
 hs_err_pid*
 replay_pid*
 /bin/
+
+# --- added while repairing the project ---
+
+# Eclipse project metadata. It encodes absolute paths and a JRE name from one
+# machine, so committing it makes the project harder to open elsewhere, not easier.
+.classpath
+.project
+.settings/
+
+# Build output. The trailing glob matters: the `/bin/` entry above does not match
+# `bin-test/`, `out/`, or any other directory a build might be pointed at.
+bin*/
+out*/
+
+# macOS noise
+.DS_Store
