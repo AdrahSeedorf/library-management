@@ -13,7 +13,7 @@ reading it, and each one has a test that fails against the original commit.
 $ mvn test
 
            against the original commit:   8 of 36 shell cases passed
-           against the current code:     38 of 38 JUnit tests passed
+           against the current code:     41 of 41 JUnit tests passed
 ```
 
 That is the interesting part of this repository. The eleven defects are catalogued
@@ -112,7 +112,7 @@ ambiguous.
 Needs a JDK 17 or newer and Maven.
 
 ```bash
-mvn test                                          # 38 tests
+mvn test                                          # 41 tests
 mvn package                                       # builds an executable jar
 java -jar target/library-management-1.0.0.jar     # run it
 ```
@@ -225,3 +225,7 @@ Honest about what it is not:
 - **Persistence is a full rewrite on clean exit**, so a crash loses the session.
   Loans and reservations are written as they happen; books and patrons are not.
 - **No overdue handling.** Due dates are recorded but nothing acts on them.
+- **Removing a book orphans its history.** Loans and reservations refer to a book,
+  so once it is withdrawn its past records cannot be rebuilt and are dropped on the
+  next load. Removal warns how many records that affects, and refuses outright while
+  the book is on loan, but the history is not preserved.

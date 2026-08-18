@@ -168,6 +168,30 @@ class ConsoleTest {
 		}
 
 		@Test
+		@DisplayName("a book that is on loan cannot be removed")
+		void loanedBookCannotBeRemoved() throws Exception {
+			String out = run("3\n1\n1984\nGeorge Orwell\n1002\n4\n"
+					+ "2\n4\n1984\nGeorge Orwell\n5\n4\n");
+			assertTrue(out.contains("is on loan to Grace Hopper"), out);
+			assertFalse(out.contains("1984 by George Orwell has been removed"), out);
+			assertTrue(lines("booklist.csv").stream().anyMatch(l -> l.startsWith("1984,")),
+					"the book must still be in the catalogue");
+			assertTrue(lines("patronList.csv").contains("Grace Hopper,1002,1"),
+					"the borrower must still be credited with it");
+		}
+
+		@Test
+		@DisplayName("removing a reserved book cancels the queue and says who was waiting")
+		void removingCancelsReservations() throws Exception {
+			String out = run("3\n1\n1984\nGeorge Orwell\n1002\n"
+					+ "1\n1984\nGeorge Orwell\n1003\n"
+					+ "2\n1984\nGeorge Orwell\n1002\n4\n"
+					+ "2\n4\n1984\nGeorge Orwell\n5\n4\n");
+			assertTrue(out.contains("has been removed successfully"), out);
+			assertTrue(out.contains("historical record(s) refer to this book"), out);
+		}
+
+		@Test
 		@DisplayName("removal reports the book that was actually removed")
 		void removalReportsTheRightBook() {
 			String out = run("2\n4\n1984\nGeorge Orwell\n5\n4\n");
@@ -307,6 +331,17 @@ class ConsoleTest {
 			String out = run("1\n3\n\nReal Name\n4\n4\n");
 			assertTrue(out.contains("cannot be blank"), out);
 			assertTrue(lines("patronList.csv").stream().noneMatch(l -> l.startsWith(",")));
+		}
+
+		@Test
+		@DisplayName("a duplicate patron ID is reported rather than silently shadowed")
+		void duplicatePatronIdIsReported() throws Exception {
+			Files.writeString(dir.resolve("patronList.csv"), PATRONS + "Imposter,1001,0\n");
+			String out = run("4\n");
+			assertTrue(out.contains("already used by Alan Turing"), out);
+			// Kept, not dropped: an unreachable record is still the user's data.
+			assertTrue(lines("patronList.csv").stream().anyMatch(l -> l.startsWith("Imposter,")),
+					lines("patronList.csv").toString());
 		}
 
 		@Test

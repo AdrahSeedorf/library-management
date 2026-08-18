@@ -378,6 +378,20 @@ public class LibraryManager {
 		                }
 		                
 		                
+		                // Two patrons with one ID: everything looks the holder up BY id, so
+		                // only the first is ever reachable -- it can never be searched for,
+		                // loaned to, or returned for. The program cannot create this (new
+		                // IDs are one past the highest), so it only arrives by hand-editing.
+		                // Reported and kept rather than dropped: an unreachable record is
+		                // still the user's data, and deleting it on their behalf would be
+		                // the same silent loss this program has already been fixed for once.
+		                Patron clash = findPatronByID(patronID);
+		                if (clash != null) {
+		                    System.out.println("Line " + lineNumber + " of " + patronsFile + ": patron ID "
+		                            + patronID + " is already used by " + clash.getName()
+		                            + ". '" + name + "' has been kept but cannot be looked up.");
+		                }
+
 		                Patron patron = new Patron(name, patronID, booksBorrowed);// A new patron object is created and given name, patronID and booksBorrowed as parameters
 
 		                //The new patron object created is added to the arraylist of patrons
@@ -468,6 +482,56 @@ public class LibraryManager {
 			 boolean removed = false;
 			 for (int i = 0; i < books.size(); i++) {
 				 if (title.equals(books.get(i).getTitle()) && author.equals(books.get(i).getAuthor())) {
+					 Book found = books.get(i);
+
+					 // A book someone is physically holding cannot be taken off the
+					 // catalogue. Removing it used to succeed silently and leave the
+					 // borrower credited with a book that no longer existed, so they
+					 // could never return it and their count never came down -- and on
+					 // the next load the loan record was dropped as an unknown ISBN,
+					 // taking the evidence with it.
+					 Borrows open = findOpenLoan(found);
+					 if (open != null) {
+						 System.out.println("'" + found.getTitle() + "' is on loan to "
+								 + open.getPatron().getName() + " until " + open.getDueDate()
+								 + ". Take the return first. Nothing has been changed.");
+						 return;
+					 }
+
+					 // Nobody is holding it, so it can go -- but people may be queuing for
+					 // it, and a queue for a book that no longer exists is a promise that
+					 // cannot be kept. Cancel those explicitly and say who was affected,
+					 // rather than leaving records pointing at a book the next load will
+					 // silently discard.
+					 List<Reservation> waiting = queueFor(found);
+					 for (Reservation r : waiting) {
+						 r.setStatus(Reservation.Status.CANCELLED);
+					 }
+					 if (!waiting.isEmpty()) {
+						 System.out.println("Cancelling " + waiting.size() + " reservation(s) for it:");
+						 for (Reservation r : waiting) {
+							 System.out.println("  " + r.getPatron().getName()
+									 + " (patron " + r.getPatron().getPatronID() + ")");
+						 }
+						 writeReservationsToFile(RESERVATIONS_FILE);
+					 }
+
+					 // Say what the removal costs. Loans and reservations refer to a book,
+					 // so once it is gone its history cannot be rebuilt on the next load --
+					 // those lines are reported as unknown ISBNs and dropped. That is a
+					 // real limitation rather than a bug, but it should not be a surprise.
+					 int history = 0;
+					 for (Borrows loan : loans) {
+						 if (loan.getBook() == found) history++;
+					 }
+					 for (Reservation r : reservations) {
+						 if (r.getBook() == found) history++;
+					 }
+					 if (history > 0) {
+						 System.out.println("Note: " + history + " historical record(s) refer to this "
+								 + "book and will be dropped the next time the files are loaded.");
+					 }
+
 					 // Hold the book BEFORE removing it. Reading books.get(i) afterwards
 					 // reads whatever shuffled into that slot -- the next book along, or
 					 // nothing at all if this was the last one.
