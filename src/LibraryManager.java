@@ -70,6 +70,26 @@ public class LibraryManager {
 			return keyboard.hasNextLine() ? keyboard.nextLine().trim() : "";
 		}
 
+		/**
+		 * Reads a value that must not be blank, re-prompting until it is not.
+		 *
+		 * Pressing Enter at a prompt used to be accepted, so a patron could be added
+		 * with no name at all -- printing " has been successfully added." and writing
+		 * ",1016,0" into patronList.csv. A record with an empty key is worse than no
+		 * record, because nothing can ever look it up again.
+		 *
+		 * Returns "" only when input has ended, which the caller must treat as a
+		 * cancellation rather than as a value.
+		 */
+		public static String readRequired(String what) {
+			while (true) {
+				if (!keyboard.hasNextLine()) return "";
+				String value = keyboard.nextLine().trim();
+				if (!value.isEmpty()) return value;
+				System.out.println("The " + what + " cannot be blank. Enter a value, please: ");
+			}
+		}
+
 		
 		
 		/**
@@ -93,6 +113,17 @@ public class LibraryManager {
 	     * returns went unchecked.
 	     */
 	    public static ArrayList<Borrows> loans = new ArrayList<>();
+
+	    /**
+	     * Whether each data file was readable at startup.
+	     *
+	     * The exit path rewrites both files from memory. If a file was missing, memory
+	     * holds nothing for it, and the write turned "the file is not here" into "the
+	     * file is here and empty" -- destroying the difference between a misplaced file
+	     * and an empty library. Recording what was found lets the exit refuse.
+	     */
+	    public static boolean booksFileLoaded = false;
+	    public static boolean patronsFileLoaded = false;
 
 		
 		
@@ -122,8 +153,10 @@ public class LibraryManager {
 		        		 menu = loanMenu();
 		        	 }
 		        	 else if (option == 4) {
-		        		 writeBooksToFile(BOOKS_FILE, books);
-		        		 writePatronsToFile(PATRONS_FILE, patrons);
+		        		 saveOnExit(BOOKS_FILE, booksFileLoaded, books.isEmpty(),
+		        				 () -> writeBooksToFile(BOOKS_FILE, books));
+		        		 saveOnExit(PATRONS_FILE, patronsFileLoaded, patrons.isEmpty(),
+		        				 () -> writePatronsToFile(PATRONS_FILE, patrons));
 		        		 System.out.println("End of Program");
 		        		 closeProgram = true;
 		        	 }
@@ -237,7 +270,7 @@ public class LibraryManager {
 		                str = bk.nextLine();
 		                lineNumber++;
 		                if (str.trim().isEmpty()) continue; // blank line, including a trailing one
-		                String[] item = str.split(","); //The split method of the String class is called to separate the items on the file by comma
+		                String[] item = Csv.split(str); //quote-aware, so a comma inside a title survives
 		                // Say which line is wrong and carry on, rather than dying on it. A
 		                // short line used to throw ArrayIndexOutOfBoundsException out of
 		                // main with no indication of which line caused it.
@@ -255,6 +288,7 @@ public class LibraryManager {
 		                //The new book object created is added to the arraylist of books
 		                books.add(book);
 		            }
+		            booksFileLoaded = true;
 		        } catch (FileNotFoundException e) {
 		            System.out.println("File not found: " + booksFile);
 		        }
@@ -276,7 +310,7 @@ public class LibraryManager {
 		                str = pt.nextLine();
 		                lineNumber++;
 		                if (str.trim().isEmpty()) continue;
-		                String[] item = str.split(","); //The split method of the String class is called to separate the items on the file by comma
+		                String[] item = Csv.split(str); //quote-aware, so a comma inside a title survives
 		                if (item.length < 3) {
 		                    System.out.println("Skipping line " + lineNumber + " of " + patronsFile
 		                            + ": expected 3 fields, found " + item.length);
@@ -298,6 +332,7 @@ public class LibraryManager {
 		                //The new patron object created is added to the arraylist of patrons
 		                patrons.add(patron);
 		            }
+		            patronsFileLoaded = true;
 		        } catch (FileNotFoundException e) {
 		            System.out.println("File not found: " + patronsFile);
 		        }
@@ -341,11 +376,25 @@ public class LibraryManager {
 		     System.out.println("---------------------");
 
 			 System.out.println("\nEnter the title of the book: ");
-			 title = readLine();
+			 title = readRequired("title");
+			 if (title.isEmpty()) return;
 			 System.out.println("Enter the author of the book: ");
-			 author = readLine();
+			 author = readRequired("author");
+			 if (author.isEmpty()) return;
 			 System.out.println("Enter the ISBN of the book: ");
-			 isbn = readLine();
+			 isbn = readRequired("ISBN");
+			 if (isbn.isEmpty()) return;
+
+			 // An ISBN identifies an edition, and the loan file records loans BY isbn,
+			 // so two books sharing one makes every loan and return ambiguous --
+			 // findBookByISBN can only ever return the first of them.
+			 Book existing = findBookByISBN(isbn);
+			 if (existing != null) {
+				 System.out.println("A book with ISBN " + isbn + " is already in the catalogue: '"
+						 + existing.getTitle() + "' by " + existing.getAuthor() + ". Nothing was added.");
+				 return;
+			 }
+
 			 availability = true;
 			 Book newBook = new Book(title, author, isbn, availability);
 			 books.add(newBook);
@@ -420,19 +469,26 @@ public class LibraryManager {
 		     System.out.println("*ADD PATRON*");
 		     System.out.println("---------------------");
 			 System.out.println("\nEnter the name of the patron: ");
-			 name = readLine();
-			 if(patrons.isEmpty()) {
-				 id = 1001; //If the patron list is empty, the new patron is given id 1001.
-			 } else {
-				 lastID = 1000;
-				 for (int i =0; i < patrons.size(); i++) {
-					 int currentId = Integer.parseInt(patrons.get(i).getPatronID()); 
-			            if (currentId > lastID) {
-			                lastID = currentId;
-			            }
+			 name = readRequired("patron's name");
+			 if (name.isEmpty()) return; // input ended; nothing to add
+			 // Skip IDs that are not numbers rather than parsing every one blindly.
+			 // Patron IDs are Strings and the loader accepts any text, so a single
+			 // non-numeric ID in patronList.csv -- a legacy membership number, say --
+			 // made this method throw NumberFormatException out of main and kill the
+			 // program. Adding a patron should not depend on every OTHER patron's ID
+			 // being well formed.
+			 lastID = 1000;
+			 for (int i = 0; i < patrons.size(); i++) {
+				 try {
+					 int currentId = Integer.parseInt(patrons.get(i).getPatronID());
+					 if (currentId > lastID) {
+						 lastID = currentId;
+					 }
+				 } catch (NumberFormatException e) {
+					 continue; // not a sequential number; it cannot be the highest one
 				 }
-				 id = lastID + 1; //The new patron is given the next sequential id after the last patron ID on the list.
 			 }
+			 id = lastID + 1; //The new patron is given the next sequential id after the highest numeric one.
 			 booksBorrowed = 0; //New Patrons have no books borrowed
 			 Patron newPatron = new Patron(name, String.valueOf(id), booksBorrowed);
 			 patrons.add(newPatron); //The new patron is added to the list of patrons
@@ -658,7 +714,7 @@ public class LibraryManager {
 					 String line = sc.nextLine();
 					 lineNumber++;
 					 if (line.trim().isEmpty()) continue;
-					 String[] item = line.split(",", -1); // -1 keeps a trailing empty field
+					 String[] item = Csv.split(line);
 					 if (item.length < 4) {
 						 System.out.println("Skipping line " + lineNumber + " of " + loansFile
 								 + ": expected at least 4 fields, found " + item.length);
@@ -716,11 +772,32 @@ public class LibraryManager {
 			 }
 		 }
 
+		 /**
+		  * Writes a data file back, unless doing so would replace a file we never read
+		  * with an empty one.
+		  *
+		  * Refusing is the point. Overwriting is right when the file was loaded and the
+		  * user has since emptied it -- that is a real edit. It is wrong when the file
+		  * was never there, because then the emptiness is our ignorance rather than the
+		  * user's intent, and writing it makes the loss permanent.
+		  */
+		 private static void saveOnExit(String file, boolean wasLoaded, boolean isEmpty, Runnable write) {
+			 if (!wasLoaded && isEmpty) {
+				 System.out.println("Not writing " + file + ": it could not be read at startup, and "
+						 + "there is nothing in memory to write. The existing file, if any, is untouched.");
+				 return;
+			 }
+			 write.run();
+		 }
+
 		 //Method to write the books to book list
 		 private static void writeBooksToFile(String booksFile, List<Book> books) {
 		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(booksFile))) {
 		        	for (int i = 0; i < books.size(); i++) {
-		                writer.write(books.get(i).getTitle() + "," + books.get(i).getAuthor() + "," + books.get(i).getISBN() + "," + books.get(i).getAvailability());
+		                writer.write(Csv.field(books.get(i).getTitle()) + ","
+	                        + Csv.field(books.get(i).getAuthor()) + ","
+	                        + Csv.field(books.get(i).getISBN()) + ","
+	                        + books.get(i).getAvailability());
 		                writer.newLine(); // Move to the next line for the next book
 		            }
 		        } catch (IOException e) {
@@ -734,7 +811,9 @@ public class LibraryManager {
 		 private static void writePatronsToFile(String patronsFile, List<Patron> patrons) {
 		        try (BufferedWriter writer = new BufferedWriter(new FileWriter(patronsFile))) {
 		        	for (int i = 0; i < patrons.size(); i++) {
-		                writer.write(patrons.get(i).getName() + "," + patrons.get(i).getPatronID() + "," + patrons.get(i).getBooksBorrowed());
+		                writer.write(Csv.field(patrons.get(i).getName()) + ","
+	                        + Csv.field(patrons.get(i).getPatronID()) + ","
+	                        + patrons.get(i).getBooksBorrowed());
 		                writer.newLine(); // Move to the next line for the next book
 		            }
 		        } catch (IOException e) {

@@ -105,7 +105,7 @@ public class Borrows {
     // line read back from an older file is treated as still on loan.
     public String toCSVFormat() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        return patron.getPatronID() + "," + book.getISBN() + ","
+        return Csv.field(patron.getPatronID()) + "," + Csv.field(book.getISBN()) + ","
                 + borrowingDate.format(formatter) + "," + dueDate.format(formatter) + ","
                 + (returnDate == null ? "" : returnDate.format(formatter));
     }

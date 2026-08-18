@@ -188,6 +188,55 @@ check "a malformed book line is reported by number, not fatal" \
 check "a non-numeric borrow count is reported, not fatal" \
     "$(grep -q 'is not a whole number' <<<"$OUT" && echo yes)" "$OUT"
 
+# ---------------------------------------------------------------------------
+echo
+echo "Input validation"
+
+fresh; printf 'Legacy Member,ABC123,0\n' >> "$WORK/run/patronList.csv"
+OUT=$(run '1\n3\nNew Person\n4\n4\n')
+check "a non-numeric patron ID does not break Add Patron" \
+    "$(! grep -q 'NumberFormatException' <<<"$OUT" && grep -q 'New Person has been successfully added' <<<"$OUT" && echo yes)" "$OUT"
+
+fresh; OUT=$(run '1\n3\n\nReal Name\n4\n4\n')
+check "a blank patron name is refused, not stored" \
+    "$(grep -q 'cannot be blank' <<<"$OUT" && ! grep -q '^,' "$WORK/run/patronList.csv" && echo yes)" \
+    "$(grep -n '^,' "$WORK/run/patronList.csv")"
+
+fresh; OUT=$(run '2\n3\nDup\nSomebody\n978-0-452-28423-4\n5\n4\n')
+check "a duplicate ISBN is refused" \
+    "$(grep -q 'already in the catalogue' <<<"$OUT" && echo yes)" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
+echo "CSV round trip"
+
+fresh; run '2\n3\nDune, Part Two\nFrank Herbert\n978-0-441-01359-3\n5\n4\n' >/dev/null
+check "a title containing a comma is quoted on write" \
+    "$(grep -q '^"Dune, Part Two",Frank Herbert,' "$WORK/run/booklist.csv" && echo yes)" \
+    "$(tail -1 "$WORK/run/booklist.csv")"
+OUT=$(run '2\n2\n5\n4\n')
+check "and reads back with the comma intact" \
+    "$(grep -q 'Dune, Part Two  *Frank Herbert' <<<"$OUT" && echo yes)" \
+    "$(grep -i dune <<<"$OUT")"
+
+# ---------------------------------------------------------------------------
+echo
+echo "Missing data files"
+
+rm -rf "$WORK/run"; mkdir -p "$WORK/run"; cp patronList.csv "$WORK/run/"
+OUT=$(run '4\n')
+check "a missing catalogue is not replaced by an empty one" \
+    "$([ ! -e "$WORK/run/booklist.csv" ] && grep -q 'Not writing booklist.csv' <<<"$OUT" && echo yes)" \
+    "booklist.csv was created with $(grep -c '' "$WORK/run/booklist.csv" 2>/dev/null || echo 0) lines"
+
+rm -rf "$WORK/run"; mkdir -p "$WORK/run"
+printf 'Only Book,Some Author,111,true\n' > "$WORK/run/booklist.csv"
+cp patronList.csv "$WORK/run/"
+run '2\n4\nOnly Book\nSome Author\n5\n4\n' >/dev/null
+check "but a genuinely emptied catalogue is still saved" \
+    "$([ -e "$WORK/run/booklist.csv" ] && [ ! -s "$WORK/run/booklist.csv" ] && echo yes)" \
+    "$(grep -c '' "$WORK/run/booklist.csv") lines remain"
+
 echo
 echo "-----------------------------------------"
 printf 'PASSED %d, FAILED %d\n' "$PASS" "$FAIL"
