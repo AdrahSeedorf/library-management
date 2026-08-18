@@ -78,6 +78,18 @@ public class LibraryManager_22053376 {
 		 */
 		
 		
+		/**
+		 * The data files, named once so the read and the write cannot disagree.
+		 *
+		 * They previously did: main() read "patronlist.csv" while the file on disk is
+		 * "patronList.csv". macOS filesystems are case-insensitive by default so it
+		 * worked on the machine it was written on, and failed completely on Linux --
+		 * "File not found: patronlist.csv", zero patrons loaded, and then an EMPTY
+		 * patronlist.csv written out on exit beside the real one.
+		 */
+		public static final String BOOKS_FILE = "booklist.csv";
+		public static final String PATRONS_FILE = "patronList.csv";
+
 		public static ArrayList<Book_22053376> books = new ArrayList<>(); //An arrayList named books is created to store books
 	    public static ArrayList<Patron_22053376> patrons = new ArrayList<>(); //An arrayList named patrons is created to store patrons
 
@@ -109,8 +121,8 @@ public class LibraryManager_22053376 {
 		        		 menu = loanMenu();
 		        	 }
 		        	 else if (option == 4) {
-		        		 writeBooksToFile("booklist.csv", books);
-		        		 writePatronsToFile("patronlist.csv", patrons);
+		        		 writeBooksToFile(BOOKS_FILE, books);
+		        		 writePatronsToFile(PATRONS_FILE, patrons);
 		        		 //outputBookCatalogue(books);
 		        		 //outputListOfPatrons(patrons);
 		        		 System.out.println("End of Program");
@@ -586,8 +598,8 @@ public class LibraryManager_22053376 {
 			public static void main(String[] args) {
 				// TODO Auto-generated method stub
 				
-				readBooksFromFile("booklist.csv", books); //Book data is read from booklist.csv and stored in bookList arrayList
-		        readPatronsFromFile("patronlist.csv", patrons); //Patron data is read from patronlist,csv and stored in patronList
+				readBooksFromFile(BOOKS_FILE, books); //Book data is read from booklist.csv and stored in bookList arrayList
+		        readPatronsFromFile(PATRONS_FILE, patrons); //Patron data is read from patronList.csv and stored in patronList
 
 		        int option = displayMainMenu();
 
