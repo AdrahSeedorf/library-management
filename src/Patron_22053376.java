@@ -57,23 +57,25 @@ public class Patron_22053376 {
 		this.booksBorrowed = booksBorrowed;
 	}
 	
-	//Method to borrow book
+	/** Credits the patron with one more borrowed book. */
 	public void borrowBook() {
-		booksBorrowed++; //number of books borrowed increases when the method is called by patron class.
-		System.out.println(name + " has borrowed a book.");
-		System.out.println("Number of books borrowed: " + booksBorrowed);
+		booksBorrowed++; //number of books borrowed increases when the method is called.
 	}
-	
-	
-	//Method to return book 
-	public void returnBook() {
-		if (booksBorrowed > 0) {
-			booksBorrowed--; //when book is returned, the number of books borrowed is reduced by 1.
-			System.out.println(name + " has returned a book.");
-			System.out.println("Number of books borrowed: " + booksBorrowed);
-		}
-		else {
-			System.out.println(name + " has no books borrowed.");//if number of books less than or equal to 0, the patron has no books to return.
-		}
+
+
+	/**
+	 * Discharges one borrowed book. Returns false, changing nothing, if this patron
+	 * has none out.
+	 *
+	 * That guard is the whole point of the method existing. LibraryManager used to
+	 * decrement the count inline without it, so a patron who had borrowed nothing
+	 * could be recorded as having returned a book and end on -1 -- which was then
+	 * written to patronList.csv. The rule now lives in one place, and the caller is
+	 * told whether it applied instead of being told nothing.
+	 */
+	public boolean returnBook() {
+		if (booksBorrowed <= 0) return false; //nothing to return
+		booksBorrowed--; //when book is returned, the number of books borrowed is reduced by 1.
+		return true;
 	}
 }

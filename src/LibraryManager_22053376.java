@@ -516,10 +516,10 @@ public class LibraryManager_22053376 {
 		     }
 		     
 		     
-		     loanBook.setAvailability(false); //After the book is borrowed, it is no longer available so we set the availability to false.
-		     int booksLoaned = loanPatron.getBooksBorrowed();
-		     booksLoaned++;
-		     loanPatron.setBooksBorrowed(booksLoaned);
+		     // Let the objects apply their own rules rather than reaching in and setting
+		     // fields. Availability was checked above, so this cannot fail.
+		     loanBook.checkBookOut();
+		     loanPatron.borrowBook();
 		     
 		     Borrows_22053376 borrow = new Borrows_22053376(loanBook, loanPatron);   //A new borrows object is created after a successful loan
 		     loans.add(borrow); // kept in memory so a later return can find and close it
@@ -599,11 +599,16 @@ public class LibraryManager_22053376 {
 		            return;
 		        }
 
-		        returnBook.setAvailability(true); // Book is now available
+		        returnBook.returnBook(); // Book is now available again
 		        loan.setReturnDate(LocalDate.now()); // the loan is now closed, not just forgotten
 		        writeLoansToFile(LOANS_FILE);
 		        //The number of books borrowed by the patron is reduced by 1 after returning the book.
-		        returnPatron.setBooksBorrowed(returnPatron.getBooksBorrowed() - 1);
+		        if (!returnPatron.returnBook()) {
+		            // The loan record says this patron holds the book but their count says
+		            // they hold nothing. Report it rather than driving the count negative.
+		            System.out.println("Note: " + returnPatron.getName() + " was recorded as holding "
+		                    + "no books, so the borrow count was left at 0.");
+		        }
 		        System.out.println("The book '" + returnBook.getTitle() + "' has been returned by "
 		                + returnPatron.getName());
 		 }

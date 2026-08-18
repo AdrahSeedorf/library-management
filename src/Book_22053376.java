@@ -78,28 +78,31 @@ public class Book_22053376 {
 	}
 	
 	
-	//method to check book out
-	public void checkBookOut() {
-		if(availability) {
-			availability = false; //After the book is checked out, it is no longer available so the availability is changed to false.
-			System.out.println("The book " + title + "has been checked out.");
-		}
-		else { // If the book is not available, it means it had already been checked out.
-			System.out.println("The book " + title + " has already been checked out");
-		}
+	/**
+	 * Marks the book as checked out. Returns false, changing nothing, if it was
+	 * already out.
+	 *
+	 * Reports the outcome rather than printing it. A model class that writes to
+	 * System.out can only be used by a console program, cannot be tested without
+	 * capturing output, and prints at moments the caller may not want -- which is
+	 * exactly why LibraryManager ignored these methods and re-implemented the same
+	 * state changes inline. Two copies of a rule is one copy too many: the copy in
+	 * Patron.returnBook guarded against a negative borrow count and the manager's
+	 * copy did not, so borrow counts went negative in the shipped program.
+	 */
+	public boolean checkBookOut() {
+		if (!availability) return false; // already out
+		availability = false; //After the book is checked out, it is no longer available.
+		return true;
 	}
-	
-	
-	
-	//method to return book
-	public void returnBook() {
-		if (!availability) { //the book must have already been borrowed to be able to return. Therefore, it must not be available.
-			availability = true;//if the book is returned, the book now becomes available.
-			System.out.println("The book " + title + " has been returned.");
-		}
-		else { //If the book was already available, it cannot be returned because it was already in  the library.
-			System.out.println("The book " + title + " was already in stock.");
-		}
+
+
+
+	/** Marks the book as back on the shelf. Returns false if it was never out. */
+	public boolean returnBook() {
+		if (availability) return false; //it was already in stock, so there is nothing to return
+		availability = true;//if the book is returned, the book now becomes available.
+		return true;
 	}
 
 }
