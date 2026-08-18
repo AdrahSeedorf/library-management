@@ -19,6 +19,8 @@
 	import java.io.BufferedWriter;
 	import java.io.File;
 	import java.io.FileNotFoundException;
+	import java.time.LocalDate;
+	import java.time.format.DateTimeParseException;
 public class LibraryManager_22053376 {
 
 	/**
@@ -89,9 +91,16 @@ public class LibraryManager_22053376 {
 		 */
 		public static final String BOOKS_FILE = "booklist.csv";
 		public static final String PATRONS_FILE = "patronList.csv";
+		public static final String LOANS_FILE = "borrowedBooks.csv";
 
 		public static ArrayList<Book_22053376> books = new ArrayList<>(); //An arrayList named books is created to store books
 	    public static ArrayList<Patron_22053376> patrons = new ArrayList<>(); //An arrayList named patrons is created to store patrons
+	    /**
+	     * Every loan, open and closed. borrowedBooks.csv used to be written and never
+	     * read, so the program had no idea who was holding which book -- which is why
+	     * returns went unchecked.
+	     */
+	    public static ArrayList<Borrows_22053376> loans = new ArrayList<>();
 
 		
 		
@@ -513,17 +522,10 @@ public class LibraryManager_22053376 {
 		     loanPatron.setBooksBorrowed(booksLoaned);
 		     
 		     Borrows_22053376 borrow = new Borrows_22053376(loanBook, loanPatron);   //A new borrows object is created after a successful loan
-		     
-		     
-		  // The new borrow object is added or appended to borrowedBooks.csv
-		        try (FileWriter writer = new FileWriter("borrowedBooks.csv", true)) {
-		            writer.append(borrow.toCSVFormat()).append("\n");
-		            System.out.println("The book has been successfully loaned to " + loanPatron.getName() +
-		                    ". The due date is: " + borrow.getDueDate());
-		        } catch (IOException e) {
-		            System.out.println("Error writing to file.");
-		            e.printStackTrace();
-		        }
+		     loans.add(borrow); // kept in memory so a later return can find and close it
+		     writeLoansToFile(LOANS_FILE);
+		     System.out.println("The book has been successfully loaned to " + loanPatron.getName() +
+		             ". The due date is: " + borrow.getDueDate());
 		 }
 		 
 		 
@@ -574,20 +576,142 @@ public class LibraryManager_22053376 {
 		     }
 		     
 		  
-		        if (!returnBook.getAvailability()) {
-		            returnBook.setAvailability(true); // Book is now available
-		            System.out.println("The book '"+ returnBook.getTitle() + "' has been returned by " + returnPatron.getName());
-		        } else {
+		        if (returnBook.getAvailability()) {
 		            System.out.println("This book was already available in the library.");
 		            return;
 		        }
+
+		        // Check that THIS patron is the one holding THIS book before changing
+		        // anything. Without the check any patron could return any book, and the
+		        // count was decremented on whoever happened to be typed in: the borrower
+		        // stayed credited with the book forever while an unrelated patron went to
+		        // -1 books borrowed, and that negative was written to patronList.csv.
+		        Borrows_22053376 loan = findOpenLoan(returnBook);
+		        if (loan == null) {
+		            System.out.println("'" + returnBook.getTitle() + "' is marked as out, but there is no "
+		                    + "loan record for it. Nothing has been changed.");
+		            return;
+		        }
+		        if (loan.getPatron() != returnPatron) {
+		            System.out.println("'" + returnBook.getTitle() + "' is on loan to "
+		                    + loan.getPatron().getName() + ", not to " + returnPatron.getName()
+		                    + ". Nothing has been changed.");
+		            return;
+		        }
+
+		        returnBook.setAvailability(true); // Book is now available
+		        loan.setReturnDate(LocalDate.now()); // the loan is now closed, not just forgotten
+		        writeLoansToFile(LOANS_FILE);
 		        //The number of books borrowed by the patron is reduced by 1 after returning the book.
-		        int booksLoaned = returnPatron.getBooksBorrowed();
-			     booksLoaned--; 
-			     returnPatron.setBooksBorrowed(booksLoaned);
+		        returnPatron.setBooksBorrowed(returnPatron.getBooksBorrowed() - 1);
+		        System.out.println("The book '" + returnBook.getTitle() + "' has been returned by "
+		                + returnPatron.getName());
 		 }
 		 
 		 
+
+		 //Finds a book by its ISBN, or null.
+		 private static Book_22053376 findBookByISBN(String isbn) {
+			 for (Book_22053376 book : books) {
+				 if (book.getISBN().equals(isbn)) return book;
+			 }
+			 return null;
+		 }
+
+		 //Finds a patron by ID, or null.
+		 private static Patron_22053376 findPatronByID(String id) {
+			 for (Patron_22053376 patron : patrons) {
+				 if (patron.getPatronID().equals(id)) return patron;
+			 }
+			 return null;
+		 }
+
+		 /**
+		  * Finds the open loan of this book, whoever holds it, or null if it is not out.
+		  */
+		 private static Borrows_22053376 findOpenLoan(Book_22053376 book) {
+			 for (Borrows_22053376 loan : loans) {
+				 if (loan.isOnLoan() && loan.getBook() == book) return loan;
+			 }
+			 return null;
+		 }
+
+		 /**
+		  * Reads the loan history, so the program knows who is holding what.
+		  *
+		  * Must run AFTER books and patrons are loaded, since each record refers to them.
+		  * Records that contradict the rest of the data are reported rather than trusted:
+		  * the shipped borrowedBooks.csv says patron 1001 has "1984" out, while
+		  * booklist.csv marks that book available and patronList.csv credits 1001 with
+		  * zero books. Two sources against one, so the loan is treated as stale history.
+		  */
+		 public static void readLoansFromFile(String loansFile) {
+			 File file = new File(loansFile);
+			 if (!file.exists()) return; // no history yet is not an error
+
+			 int lineNumber = 0;
+			 try (Scanner sc = new Scanner(file)) {
+				 while (sc.hasNextLine()) {
+					 String line = sc.nextLine();
+					 lineNumber++;
+					 if (line.trim().isEmpty()) continue;
+					 String[] item = line.split(",", -1); // -1 keeps a trailing empty field
+					 if (item.length < 4) {
+						 System.out.println("Skipping line " + lineNumber + " of " + loansFile
+								 + ": expected at least 4 fields, found " + item.length);
+						 continue;
+					 }
+					 Patron_22053376 patron = findPatronByID(item[0].trim());
+					 Book_22053376 book = findBookByISBN(item[1].trim());
+					 if (patron == null || book == null) {
+						 System.out.println("Skipping line " + lineNumber + " of " + loansFile
+								 + ": unknown " + (patron == null ? "patron " + item[0].trim()
+										 : "ISBN " + item[1].trim()));
+						 continue;
+					 }
+					 LocalDate borrowed;
+					 LocalDate due;
+					 LocalDate returned = null;
+					 try {
+						 borrowed = LocalDate.parse(item[2].trim());
+						 due = LocalDate.parse(item[3].trim());
+						 if (item.length > 4 && !item[4].trim().isEmpty()) {
+							 returned = LocalDate.parse(item[4].trim());
+						 }
+					 } catch (DateTimeParseException e) {
+						 System.out.println("Skipping line " + lineNumber + " of " + loansFile
+								 + ": " + e.getMessage());
+						 continue;
+					 }
+
+					 if (returned == null && book.getAvailability()) {
+						 System.out.println("Note: " + loansFile + " line " + lineNumber
+								 + " shows '" + book.getTitle() + "' out to " + patron.getName()
+								 + ", but the catalogue marks it available. Treating it as returned.");
+						 returned = due;
+					 }
+					 loans.add(new Borrows_22053376(book, patron, borrowed, due, returned));
+				 }
+			 } catch (FileNotFoundException e) {
+				 System.out.println("File not found: " + loansFile);
+			 }
+		 }
+
+		 /**
+		  * Rewrites the whole loan file. A return has to be able to CHANGE an existing
+		  * line, which appending alone cannot do.
+		  */
+		 private static void writeLoansToFile(String loansFile) {
+			 try (BufferedWriter writer = new BufferedWriter(new FileWriter(loansFile))) {
+				 for (Borrows_22053376 loan : loans) {
+					 writer.write(loan.toCSVFormat());
+					 writer.newLine();
+				 }
+			 } catch (IOException e) {
+				 System.out.println("An error occurred while writing the loans to the file.");
+				 e.printStackTrace();
+			 }
+		 }
 
 		 //Method to write the books to book list
 		 private static void writeBooksToFile(String booksFile, List<Book_22053376> books) {
@@ -621,6 +745,7 @@ public class LibraryManager_22053376 {
 				
 				readBooksFromFile(BOOKS_FILE, books); //Book data is read from booklist.csv and stored in bookList arrayList
 		        readPatronsFromFile(PATRONS_FILE, patrons); //Patron data is read from patronList.csv and stored in patronList
+		        readLoansFromFile(LOANS_FILE); //Must come last: each loan refers to a book and a patron
 
 		        int option = displayMainMenu();
 
