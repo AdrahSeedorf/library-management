@@ -328,8 +328,11 @@ public class LibraryManager_22053376 {
 			 boolean removed = false;
 			 for (int i = 0; i < books.size(); i++) {
 				 if (title.equals(books.get(i).getTitle()) && author.equals(books.get(i).getAuthor())) {
-					 books.remove(i);
-					 System.out.println(books.get(i).getTitle() + " by " + books.get(i).getAuthor() + " has been removed successfully.");
+					 // Hold the book BEFORE removing it. Reading books.get(i) afterwards
+					 // reads whatever shuffled into that slot -- the next book along, or
+					 // nothing at all if this was the last one.
+					 Book_22053376 gone = books.remove(i);
+					 System.out.println(gone.getTitle() + " by " + gone.getAuthor() + " has been removed successfully.");
 					 removed = true;
 					 break;
 				 }
