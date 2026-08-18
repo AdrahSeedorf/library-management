@@ -221,23 +221,32 @@ public class LibraryManager_22053376 {
 			 String author;
 			 String isbn;
 			 boolean availability;
-			 int position = 0; //the first position is set to 0 because it is in index form 
-			 
+		        // No cap on how many books are read. There used to be one -- position < 20
+		        // -- and because the exit path REWRITES this file from whatever is in
+		        // memory, every run silently deleted every book past the twentieth.
+		        int lineNumber = 0;
 		        try (Scanner bk = new Scanner(new File(booksFile))) {
-		            bk.useDelimiter(",");// The useDelimeter method of the Scanner class is called here
-		            
-		            while (bk.hasNextLine() && position < 20) {
+		            while (bk.hasNextLine()) {
 		                str = bk.nextLine();
+		                lineNumber++;
+		                if (str.trim().isEmpty()) continue; // blank line, including a trailing one
 		                String[] item = str.split(","); //The split method of the String class is called to separate the items on the file by comma
-		                title = item[0]; //The first item on the line is stored as the title of the book
-		                author = item[1]; //The second item on the line is stored as the author
-		                isbn = item[2]; //The third item is stored as the ISBN of the book
-		                availability = Boolean.parseBoolean(item[3]); //data[3] is read from the file as string so it is converted to boolean to match the type of availability.
+		                // Say which line is wrong and carry on, rather than dying on it. A
+		                // short line used to throw ArrayIndexOutOfBoundsException out of
+		                // main with no indication of which line caused it.
+		                if (item.length < 4) {
+		                    System.out.println("Skipping line " + lineNumber + " of " + booksFile
+		                            + ": expected 4 fields, found " + item.length);
+		                    continue;
+		                }
+		                title = item[0].trim(); //The first item on the line is stored as the title of the book
+		                author = item[1].trim(); //The second item on the line is stored as the author
+		                isbn = item[2].trim(); //The third item is stored as the ISBN of the book
+		                availability = Boolean.parseBoolean(item[3].trim()); //data[3] is read from the file as string so it is converted to boolean to match the type of availability.
 		                Book_22053376 book = new Book_22053376(title, author, isbn, availability);
 
 		                //The new book object created is added to the arraylist of books
-		                books.add(book); 
-		                position = position + 1; //The position or index is increased by one for the next book
+		                books.add(book);
 		            }
 		        } catch (FileNotFoundException e) {
 		            System.out.println("File not found: " + booksFile);
@@ -251,24 +260,36 @@ public class LibraryManager_22053376 {
 			 String name;
 			 String patronID;
 			 int booksBorrowed;
-	        int position = 0; //the first position is set to 0 because it is in index form.
 
-			 
+		        // No cap, for the same reason as readBooksFromFile: the old limit of 10
+		        // silently deleted every patron past the tenth on exit.
 		        try (Scanner pt = new Scanner(new File(patronsFile))) {
-		            pt.useDelimiter(","); //The useDelimiter method of the scanner class is called here
-		            while (pt.hasNextLine() && position < 10) {
+		            int lineNumber = 0;
+		            while (pt.hasNextLine()) {
 		                str = pt.nextLine();
+		                lineNumber++;
+		                if (str.trim().isEmpty()) continue;
 		                String[] item = str.split(","); //The split method of the String class is called to separate the items on the file by comma
-		                name = item[0]; //The first item on the line is stored as name 
-		                patronID = item[1]; //The second item on the line is stored as patronID
-		                booksBorrowed = Integer.parseInt(item[2]); //data[2] is read from the file as an integer so it has to be converted to type int to match the type of booksBorrowed
+		                if (item.length < 3) {
+		                    System.out.println("Skipping line " + lineNumber + " of " + patronsFile
+		                            + ": expected 3 fields, found " + item.length);
+		                    continue;
+		                }
+		                name = item[0].trim(); //The first item on the line is stored as name 
+		                patronID = item[1].trim(); //The second item on the line is stored as patronID
+		                try {
+		                    booksBorrowed = Integer.parseInt(item[2].trim()); //converted to int to match the type of booksBorrowed
+		                } catch (NumberFormatException e) {
+		                    System.out.println("Skipping line " + lineNumber + " of " + patronsFile
+		                            + ": '" + item[2].trim() + "' is not a whole number");
+		                    continue;
+		                }
 		                
 		                
 		                Patron_22053376 patron = new Patron_22053376(name, patronID, booksBorrowed);// A new patron object is created and given name, patronID and booksBorrowed as parameters
 
 		                //The new patron object created is added to the arraylist of patrons
-		                patrons.add(patron); 
-		                position = position + 1; //The position or index is increased by 1 for the next patron
+		                patrons.add(patron);
 		            }
 		        } catch (FileNotFoundException e) {
 		            System.out.println("File not found: " + patronsFile);
